@@ -3,7 +3,8 @@
 const tid = new URLSearchParams(location.search).get('id');
 let curVideo = null, curDs = null, datasets = [], frameList = [];
 let classes = [];                    // [{name,color}]
-let dboxes = [], sel = -1;           // 当前帧框 [x1,y1,x2,y2,cls]
+let dboxes = [], sel = -1;           // 当前帧框 [x1,y1,x2,y2,cls]；sel=主选中
+let selSet = new Set();              // 多选集合（Ctrl+点击 / Ctrl+A）
 let hist = [], changed = false, drag = null, space = false;
 let spaceStash = null;               // 临时移动期间挂起的绘制状态
 let spaceDown = false, ctrlDown = false, spaceCancelled = false, ctrlCancelled = false;
@@ -256,7 +257,7 @@ async function showFrame(i, el) {
   // 读该帧标注
   const r = await (await api(`/api/ds/${curDs.id}/label/${gi}`)).json();
   dboxes = (r.boxes || []).map(b => b.length > 4 ? [...b] : [...b, 0]);
-  hist = []; sel = -1; changed = false;
+  hist = []; clearSel(); changed = false;
   const img = new Image();
   img.onload = () => {
     cv.dataset.nw = img.naturalWidth; cv.dataset.nh = img.naturalHeight;
@@ -276,7 +277,7 @@ function drawBig() {
   {
         ctx.drawImage(img, 0, 0, cv.width, cv.height);
     dboxes.forEach((b, i) => {
-      const isSel = i === sel;
+      const isSel = i === sel || selSet.has(i);
       if (b[0] === 'poly') {
         const cls = b[1], c = classes[cls] ? classes[cls].color : '#f33';
         ctx.beginPath();
@@ -297,7 +298,7 @@ function drawBig() {
         ctx.fillRect(lx, Math.max(0, ly - 16), ctx.measureText(label).width + 8, 16);
         ctx.fillStyle = '#111';
         ctx.fillText(label, lx + 4, Math.max(11, ly - 4));
-        if (isSel) {
+        if (i === sel) {
           ctx.fillStyle = '#ff0';
           for (let k = 0; k < (b.length - 2) / 2; k++)
             ctx.fillRect(b[2 + k * 2] * cv.width - 4, b[3 + k * 2] * cv.height - 4, 8, 8);
@@ -315,7 +316,7 @@ function drawBig() {
         ctx.fillRect(x, Math.max(0, y - 16), ctx.measureText(label).width + 8, 16);
         ctx.fillStyle = '#111';
         ctx.fillText(label, x + 4, Math.max(11, y - 4));
-        if (isSel) {
+        if (i === sel) {
           ctx.fillStyle = '#ff0';
           [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]
             .forEach(p => ctx.fillRect(p[0] - 5, p[1] - 5, 10, 10));
@@ -436,14 +437,14 @@ function syncToolBtns() {
     document.getElementById('tb-' + x).classList.toggle('active', x === eff));
 }
 function setTool(t) {
-  tool = t; polyPts = []; pending = null; hoverPt = null; sel = -1;
+  tool = t; polyPts = []; pending = null; hoverPt = null; clearSel();
   ['move', 'rect', 'poly'].forEach(x =>
     document.getElementById('tb-' + x).classList.toggle('active', x === t));
   cv.style.cursor = t === 'move' ? 'default' : 'crosshair';
   drawBig();
 }
 function cancelOp() {
-  polyPts = []; pending = null; hoverPt = null; sel = -1;
+  polyPts = []; pending = null; hoverPt = null; clearSel();
   document.getElementById('clspop').style.display = 'none';
   drawBig();
 }
@@ -512,6 +513,36 @@ function bindCanvas() {
       drawBig(); return;
     }
     if (!drag && !space && pending) { hoverPt = toN(e); drawBig(); return; }
+    if (drag && drag.mode === 'gmove') {
+      const cl = v => Math.min(1, Math.max(0, v));
+      const [x, y] = toN(e), dx = x - drag.sx, dy = y - drag.sy;
+      for (const [i, o] of drag.origs) {
+        const b = dboxes[i]; if (!b) continue;
+        if (b[0] === 'poly') {
+          for (let k = 0; k < (o.length - 2) / 2; k++) {
+            b[2 + k * 2] = cl(o[2 + k * 2] + dx); b[3 + k * 2] = cl(o[3 + k * 2] + dy);
+          }
+        } else {
+          b[0] = cl(o[0] + dx); b[1] = cl(o[1] + dy);
+          b[2] = cl(o[2] + dx); b[3] = cl(o[3] + dy);
+        }
+      }
+      drawBig(); return;
+    }
+    if (drag && drag.mode === 'gscale') {   // 多选整体缩放（以并集包围盒中心为基准）
+      const [x, y] = toN(e);
+      const [uL, uT, uR, uB] = drag.ub;
+      const cx = (uL + uR) / 2, cy = (uT + uB) / 2;
+      let fx = 1, fy = 1;
+      const g = drag.grip;
+      if (g.includes('L')) { const d = uL - cx; fx = Math.abs(d) > 1e-6 ? (x - cx) / d : 1; }
+      if (g.includes('R')) { const d = uR - cx; fx = Math.abs(d) > 1e-6 ? (x - cx) / d : 1; }
+      if (g.includes('T')) { const d = uT - cy; fy = Math.abs(d) > 1e-6 ? (y - cy) / d : 1; }
+      if (g.includes('B')) { const d = uB - cy; fy = Math.abs(d) > 1e-6 ? (y - cy) / d : 1; }
+      fx = Math.max(0.02, Math.abs(fx)); fy = Math.max(0.02, Math.abs(fy));
+      scaleAll(drag.origs.map(o => o[0]), drag.origs.map(o => o[1]), cx, cy, fx, fy);
+      drawBig(); return;
+    }
     // 移动模式（或按住空格）：hover 边角时按方向切换双箭头光标
     if (!drag && (tool === 'move' || space)) {
       const r = cv.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
@@ -568,16 +599,23 @@ function bindCanvas() {
       const b = dboxes[sel];
       if (b[2] - b[0] < 0.004 || b[3] - b[1] < 0.004) { dboxes.splice(sel, 1); sel = -1; }
     }
-    // 规范化：拖过对边导致反转的矩形，交换坐标
-    if (sel >= 0 && dboxes[sel] && dboxes[sel][0] !== 'poly') {
-      const b = dboxes[sel];
-      if (b[0] > b[2]) { const t = b[0]; b[0] = b[2]; b[2] = t; }
-      if (b[1] > b[3]) { const t = b[1]; b[1] = b[3]; b[3] = t; }
+    // 规范化：拖过对边导致反转的矩形，交换坐标（多选全部处理）
+    for (const i of selIdxs()) {
+      const b = dboxes[i];
+      if (b && b[0] !== 'poly') {
+        if (b[0] > b[2]) { const t = b[0]; b[0] = b[2]; b[2] = t; }
+        if (b[1] > b[3]) { const t = b[1]; b[1] = b[3]; b[3] = t; }
+      }
     }
     // 实际发生位移（与拖动前快照不同）才标脏；仅选中不标
-    const b = sel >= 0 ? dboxes[sel] : null;
-    const moved = b && drag.orig ? JSON.stringify(b) !== JSON.stringify(drag.orig)
-      : (drag.mode === 'new' && sel >= 0);
+    let moved = false;
+    if (drag.origs) {
+      moved = drag.origs.some(([i, o]) => dboxes[i] && JSON.stringify(dboxes[i]) !== JSON.stringify(o));
+    } else {
+      const b = sel >= 0 ? dboxes[sel] : null;
+      moved = b && drag.orig ? JSON.stringify(b) !== JSON.stringify(drag.orig)
+        : (drag.mode === 'new' && sel >= 0);
+    }
     drag = null;
     if (moved) markChanged();
     else scheduleAutoSave();   // 无位移时不标脏，此调用自然 no-op
@@ -587,11 +625,26 @@ function pushHist() {   // 纯快照：只记撤销历史，不标脏（避免�
   hist.push(JSON.stringify(dboxes)); if (hist.length > 50) hist.shift();
 }
 function markChanged() { changed = true; scheduleAutoSave(); }
-function delSel() { if (sel >= 0) { pushHist(); dboxes.splice(sel, 1); sel = -1; markChanged(); drawBig(); } }
+function delSel() {
+  const idxs = selIdxs().filter(i => dboxes[i]).sort((a, b) => b - a);
+  if (!idxs.length) return;
+  pushHist();
+  for (const i of idxs) dboxes.splice(i, 1);
+  clearSel(); markChanged(); drawBig();
+}
+function selectAllBoxes() {   // 全选当前帧标注
+  selSet = new Set(dboxes.map((_, i) => i));
+  sel = dboxes.length - 1;
+  drawBig();
+  toast(selSet.size ? `已全选 ${selSet.size} 个标注框` : '当前帧没有标注', selSet.size ? 'info' : 'err');
+}
 /* 复制/粘贴标注框（归一化坐标，可跨帧/跨视频使用） */
 let clipBoxes = [];
 function copyBoxes() {
-  if (sel >= 0 && dboxes[sel]) {
+  if (selSet.size > 1) {   // 多选：按序号复制全部选中
+    clipBoxes = selIdxs().sort((a, b) => a - b).map(i => dboxes[i].slice());
+    toast(`已复制 ${clipBoxes.length} 个标注框`, 'info');
+  } else if (sel >= 0 && dboxes[sel]) {
     clipBoxes = [dboxes[sel].slice()];   // 仅选中的那个框（矩形/多边形原样）
     toast(`已复制 1 个标注框`, 'info');
   } else if (dboxes.length) {
@@ -605,11 +658,12 @@ function pasteBoxes() {
   if (!clipBoxes.length) { toast('剪贴板为空，请先复制', 'err'); return; }
   pushHist();
   for (const b of clipBoxes) dboxes.push(b.slice());
+  selSet = new Set(dboxes.slice(-clipBoxes.length).map((_, k) => dboxes.length - clipBoxes.length + k));
   sel = dboxes.length - 1;
   markChanged(); drawBig();   // markChanged 会防抖自动保存；粘贴后可手动 Ctrl+S 立即确认
   toast(`已粘贴 ${clipBoxes.length} 个标注框，记得保存`, 'ok');
 }
-function undo() { if (hist.length) { dboxes = JSON.parse(hist.pop()); sel = -1; drawBig(); } }
+function undo() { if (hist.length) { dboxes = JSON.parse(hist.pop()); clearSel(); drawBig(); } }
 async function saveFrame(silent) {
   if (!curDs || window._curFrame == null) return false;
   const fi = window._curFrame;   // 锁定目标帧：在途期间切帧不串写
@@ -656,15 +710,28 @@ function kbd(e) {
   // ESC：绘制中取消本次标注（起点/顶点），否则取消选中
   if (e.key === 'Escape') {
     if (pending || polyPts.length) { pending = null; polyPts = []; hoverPt = null; drawBig(); }
-    else { sel = -1; drawBig(); }
+    else { clearSel(); drawBig(); }
     return;
   }
-  if (e.key === 'ArrowLeft') { navFrame(-1); return; }
-  if (e.key === 'ArrowRight') { navFrame(1); return; }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' ||
+      e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+    if (selSet.size) {   // 多选：方向键整组微调（Shift ×10）
+      const st = e.shiftKey ? 10 : 1;
+      const dx = (e.key === 'ArrowLeft' ? -st : e.key === 'ArrowRight' ? st : 0) / cv.width;
+      const dy = (e.key === 'ArrowUp' ? -st : e.key === 'ArrowDown' ? st : 0) / cv.height;
+      pushHist();
+      for (const i of selIdxs()) if (dboxes[i]) translateBox(dboxes[i], dx, dy);
+      markChanged(); drawBig(); e.preventDefault(); return;
+    }
+    if (e.key === 'ArrowLeft') { navFrame(-1); return; }
+    if (e.key === 'ArrowRight') { navFrame(1); return; }
+    return;
+  }
   // Ctrl+C 复制 / Ctrl+V 粘贴标注框
   const ck = e.key.toLowerCase();
   if (e.ctrlKey && ck === 'c') { copyBoxes(); e.preventDefault(); return; }
   if (e.ctrlKey && ck === 'v') { pasteBoxes(); e.preventDefault(); return; }
+  if (e.ctrlKey && ck === 'a') { selectAllBoxes(); e.preventDefault(); return; }
   // Ctrl+S 保存
   if (e.ctrlKey && e.key.toLowerCase() === 's') { saveFrame(); e.preventDefault(); return; }
   // Ctrl+Z 撤销
@@ -1203,6 +1270,49 @@ cv.addEventListener('contextmenu', e => {
 });
 
 /* 移动模式命中处理（工具=move 或 按住空格时） */
+function selIdxs() {   // 当前生效的多选集合（含主选中）
+  const s = new Set(selSet); if (sel >= 0) s.add(sel); return [...s];
+}
+function clearSel() { sel = -1; selSet.clear(); }
+function translateBox(b, dx, dy) {
+  const cl = v => Math.min(1, Math.max(0, v));
+  if (b[0] === 'poly') {
+    for (let k = 0; k < (b.length - 2) / 2; k++) {
+      b[2 + k * 2] = cl(b[2 + k * 2] + dx); b[3 + k * 2] = cl(b[3 + k * 2] + dy);
+    }
+  } else { b[0] = cl(b[0] + dx); b[1] = cl(b[1] + dy); b[2] = cl(b[2] + dx); b[3] = cl(b[3] + dy); }
+}
+function unionBBox(idxs) {   // 多选的并集包围盒（归一化）
+  let uL = 1, uT = 1, uR = 0, uB = 0;
+  for (const i of idxs) {
+    const b = dboxes[i]; if (!b) continue;
+    if (b[0] === 'poly') {
+      for (let k = 0; k < (b.length - 2) / 2; k++) {
+        uL = Math.min(uL, b[2 + k * 2]); uR = Math.max(uR, b[2 + k * 2]);
+        uT = Math.min(uT, b[3 + k * 2]); uB = Math.max(uB, b[3 + k * 2]);
+      }
+    } else {
+      uL = Math.min(uL, b[0], b[2]); uR = Math.max(uR, b[0], b[2]);
+      uT = Math.min(uT, b[1], b[3]); uB = Math.max(uB, b[1], b[3]);
+    }
+  }
+  return [uL, uT, uR, uB];
+}
+function scaleAll(idxs, origs, cx, cy, fx, fy) {
+  const cl = v => Math.min(1, Math.max(0, v));
+  const f = (o, c, k) => cl(c + (o - c) * k);
+  idxs.forEach((i, n) => {
+    const b = dboxes[i], o = origs[n]; if (!b || !o) return;
+    if (b[0] === 'poly') {
+      for (let k = 0; k < (o.length - 2) / 2; k++) {
+        b[2 + k * 2] = f(o[2 + k * 2], cx, fx); b[3 + k * 2] = f(o[3 + k * 2], cy, fy);
+      }
+    } else {
+      b[0] = f(o[0], cx, fx); b[1] = f(o[1], cy, fy);
+      b[2] = f(o[2], cx, fx); b[3] = f(o[3], cy, fy);
+    }
+  });
+}
 function moveModeHit(e, px, py, x, y) {
   let hit = -1;
   for (let i = dboxes.length - 1; i >= 0; i--) {
@@ -1218,8 +1328,15 @@ function moveModeHit(e, px, py, x, y) {
     }
   }
   if (hit >= 0) {
+    if (e.ctrlKey && !space) {   // Ctrl+点击：切换多选
+      if (selSet.has(hit)) selSet.delete(hit); else selSet.add(hit);
+      sel = hit; drawBig(); return;
+    }
+    if (!selSet.has(hit)) clearSel();
     sel = hit; const b = dboxes[hit];
     pushHist();
+    const group = selSet.size > 1;
+    const origs = group ? selIdxs().sort((a, b2) => a - b2).map(i => [i, dboxes[i].slice()]) : null;
     if (b[0] === 'poly') {
       let vi = -1;
       for (let k = 0; k < (b.length - 2) / 2; k++) {
@@ -1227,6 +1344,7 @@ function moveModeHit(e, px, py, x, y) {
         if (Math.hypot(px - vx, py - vy) < 9) { vi = k; break; }
       }
       if (vi >= 0) drag = { mode: 'polyv', bi: hit, vi, orig: [...b] };
+      else if (group) drag = { mode: 'gmove', sx: x, sy: y, origs };
       else drag = { mode: 'polymove', sx: x, sy: y, orig: [...b] };
     } else {
       const L = Math.min(b[0], b[2]) * cv.width, T = Math.min(b[1], b[3]) * cv.height,
@@ -1239,11 +1357,17 @@ function moveModeHit(e, px, py, x, y) {
       else if (nearL && nearB) grip = 'LB'; else if (nearR && nearB) grip = 'RB';
       else if (nearL) grip = 'L'; else if (nearR) grip = 'R';
       else if (nearT) grip = 'T'; else if (nearB) grip = 'B';
-      drag = grip ? { mode: 'resize', grip, orig: [...b] }
-                  : { mode: 'move', sx: x, sy: y, orig: [...b] };
+      if (grip) {
+        drag = group
+          ? { mode: 'gscale', grip, origs, ub: unionBBox(origs.map(o => o[0])) }
+          : { mode: 'resize', grip, orig: [...b] };
+      } else {
+        drag = group ? { mode: 'gmove', sx: x, sy: y, origs }
+                     : { mode: 'move', sx: x, sy: y, orig: [...b] };
+      }
     }
   } else {
-    sel = -1;
+    clearSel();
   }
   drawBig();
 }
