@@ -1388,16 +1388,28 @@ document.getElementById('bigframe').addEventListener('wheel', e => {
 }, { passive: false });
 
 /* ===== 导出 ===== */
+/* 路径风格转换：服务器端 /mnt/hgfs/VMShare ↔ 客户端(Windows) D:\VMShare
+   浏览器只能列服务器目录，但展示/填写统一用客户端地址 */
+function toClientPath(p) {
+  if (p && p.startsWith('/mnt/hgfs/VMShare'))
+    return 'D:\\VMShare\\' + p.slice('/mnt/hgfs/VMShare/'.length).replace(/\//g, '\\');
+  return p;
+}
+function toServerPath(p) {
+  if (p && /^D:\\VMShare/i.test(p))
+    return '/mnt/hgfs/VMShare/' + p.slice('D:\\VMShare\\'.length).replace(/\\/g, '/');
+  return p;
+}
 async function doExport() {
-  const path = $('expath').value.trim();
+  const disp = $('expath').value.trim();
   const format = $('exfmt').value;
-  if (!path) { $('exmsg2').textContent = '请填写导出目录'; return; }
+  if (!disp) { $('exmsg2').textContent = '请填写导出目录'; return; }
   $('exmsg2').textContent = '导出中…';
   const r = await api(`/api/anno_tasks/${tid}/export`, { method: 'POST',
-    body: JSON.stringify({ path, format }) });
+    body: JSON.stringify({ path: toServerPath(disp), format }) });
   const res = await r.json();
   if (!res.ok) { $('exmsg2').textContent = res.err || '导出失败'; return; }
-  $('exmsg2').textContent = `✓ 已导出 ${res.images} 张图到 ${res.path}`;
+  $('exmsg2').textContent = `✓ 已导出 ${res.images} 张图到 ${toClientPath(res.path)}`;
 }
 
 /* ===== 目录浏览器 ===== */
@@ -1440,7 +1452,7 @@ async function fsUp() {
   await fsLoad();
 }
 function fsPick() {
-  $('expath').value = fsCurPath;
+  $('expath').value = toClientPath(fsCurPath);   // 选择结果转成客户端地址
   $('fsmodal').style.display = 'none';
 }
 
