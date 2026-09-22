@@ -1153,8 +1153,7 @@ document.addEventListener('click', e => {
   if (m) m.style.display = 'none';
   const fp = document.getElementById('clsfpop');   // 点击筛选弹窗外部时关闭
   if (fp && fp.style.display === 'block' && !fp.contains(e.target) &&
-      !(e.target.closest && e.target.closest('.tbtn') &&
-        e.target.textContent === '筛选')) fp.style.display = 'none';
+      !(e.target.closest && e.target.closest('#clsfbtn'))) fp.style.display = 'none';
 });
 function setView(mode) {
   const ih = document.getElementById('imghdr');
@@ -1646,7 +1645,7 @@ function applyClsFilter() {
   window._clsFilter = (ks.length && ks.length < classes.length) ? new Set(ks) : null;
   document.getElementById('clsfpop').style.display = 'none';
   renderLeft();
-  const fbtn = [...document.querySelectorAll('.tbtn')].find(b => b.textContent === '筛选');
+  const fbtn = document.getElementById('clsfbtn');
   if (fbtn) {
     fbtn.textContent = window._clsFilter ? `筛选(${window._clsFilter.size})` : '筛选';
     fbtn.classList.toggle('active', !!window._clsFilter);
