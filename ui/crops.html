@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8"><title>切片审查 - 标注平台</title>
+<link rel="stylesheet" href="/ui/style.css">
+<style>
+ #cropgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+ .cropcard{background:#252526;border:1px solid #3c3c3c;border-radius:6px;overflow:hidden}
+ .cropcard img{width:100%;height:150px;object-fit:contain;background:#111;display:block;cursor:zoom-in}
+ .cropcard .info{padding:6px 8px;font-size:12px;color:#bbb;line-height:1.5}
+ .cropcard .tag{display:inline-block;padding:0 6px;border-radius:3px;color:#fff;font-size:11px}
+ .clstab{display:inline-block;padding:4px 12px;border-radius:4px;background:#333;color:#ccc;
+  cursor:pointer;font-size:13px;border:none}
+ .clstab.active{background:#094771;color:#fff}
+</style></head>
+<body>
+<div id="layout">
+ <div id="nav"></div>
+ <div id="content">
+  <div style="display:flex;align-items:center;margin-bottom:12px;gap:10px">
+   <h2 style="flex:1;margin:0">切片审查 <span id="tname" style="font-size:14px;color:#888"></span></h2>
+   <button id="genbtn" onclick="startGen()">开始切片</button>
+  </div>
+  <div class="msg" id="cmsg" style="margin-bottom:10px">
+    点击「开始切片」按当前标注框裁剪生成切片（外扩 15% 边距），完成后按标签分类展示，用于审查框-图是否匹配。</div>
+  <div id="tabs" style="margin-bottom:12px"></div>
+  <div id="cropgrid"></div>
+  <div style="display:flex;gap:10px;align-items:center;justify-content:center;margin:16px 0">
+   <button id="prev" onclick="gotoPage(page-1)">上一页</button>
+   <span id="pinfo" style="color:#888;font-size:13px"></span>
+   <button id="next" onclick="gotoPage(page+1)">下一页</button>
+  </div>
+ </div>
+</div>
+<script src="/ui/common.js"></script>
+<script src="/ui/crops.js"></script>
+<script>authGuard();</script>
+</body></html>
