@@ -104,6 +104,7 @@
      <button class="tbtn" id="tb-poly" onclick="setTool('poly')" title="多边形：依次点击顶点，双击或点击起点闭合">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 6-3 10H7L4 9z"/></svg>多边形</button>
      <span style="flex:1"></span>
+     <button class="tbtn" id="fsbtn" onclick="toggleFullscreen()" title="全屏显示主显示区（Esc 退出）">全屏</button>
      <button class="tbtn" onclick="selectAllBoxes()" title="全选当前帧标注 (Ctrl+A)">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>全选</button>
      <button class="tbtn" id="tb-copy" onclick="copyBoxes()" title="复制标注框：多选复制多选，单选复制单个，无选中复制本帧全部 (Ctrl+C)">
@@ -124,7 +125,6 @@
      <canvas id="bigcv" style="max-width:100%;max-height:100%"></canvas>
     </div>
     <div style="display:flex;align-items:center;margin-bottom:4px">
-     <button class="tbtn" id="fsbtn" onclick="toggleFullscreen()" title="全屏显示主显示区（Esc 退出）">全屏</button>
      <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;margin-right:auto">
       <input type="checkbox" id="selallstrip" onchange="selAllStrip(this.checked)">全选
      </label>
