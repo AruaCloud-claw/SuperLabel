@@ -104,7 +104,9 @@
      <button class="tbtn" id="tb-poly" onclick="setTool('poly')" title="多边形：依次点击顶点，双击或点击起点闭合">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 6-3 10H7L4 9z"/></svg>多边形</button>
      <span style="flex:1"></span>
-     <button class="tbtn" id="tb-copy" onclick="copyBoxes()" title="复制标注框：有选中复制选中，否则复制本帧全部 (Ctrl+C)">
+     <button class="tbtn" onclick="selectAllBoxes()" title="全选当前帧标注 (Ctrl+A)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>全选</button>
+     <button class="tbtn" id="tb-copy" onclick="copyBoxes()" title="复制标注框：多选复制多选，单选复制单个，无选中复制本帧全部 (Ctrl+C)">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>复制</button>
      <button class="tbtn" id="tb-paste" onclick="pasteBoxes()" title="粘贴标注框到当前帧 (Ctrl+V)">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/></svg>粘贴</button>
