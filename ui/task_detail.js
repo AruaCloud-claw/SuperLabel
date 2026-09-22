@@ -139,6 +139,7 @@ function selVideo(id, name) {
   const tile = document.getElementById('tile' + id);
   if (window._videoFilter === id) {   // 再点一次：取消过滤，显示全池
     window._videoFilter = null;
+    window._labelStats = null;   // 范围变了：标签统计缓存失效
     tile.classList.remove('sel');
     $('selinfo').textContent = '已选中: 全部视频';
     reloadFrames().then(() => toast('已显示全部视频的帧', 'info'));
@@ -148,6 +149,7 @@ function selVideo(id, name) {
   tile.classList.add('sel');
   $('selinfo').textContent = '已选中: ' + name + '（再点一次显示全部）';
   window._videoFilter = id;
+  window._labelStats = null;   // 显示范围变了：标签统计缓存失效
   reloadFrames().then(() => {
     const tv = (window._taskVideos || []).find(x => x.id === id);
     if (frameList.length) jumpToFrame(0);
@@ -1034,6 +1036,7 @@ async function doDeleteVideoFrames() {
   if (!res.ok) { toast(res.err || '删除失败', 'err'); return; }
   toast(`已删除 ${res.deleted} 帧，并已从任务移除该视频`, 'info');
   window._videoFilter = null;
+  window._labelStats = null;
   window._selFrames.clear();
   await loadDetail();          // 刷新视频区间与帧池
 }
@@ -1587,7 +1590,8 @@ async function openClsFilter(btn) {
   if (!window._labelStats) {
     btn.textContent = '统计中…';
     try {
-      const r = await api(`/api/anno_tasks/${tid}/label_stats`);
+      const vf = window._videoFilter ? `&video_id=${window._videoFilter}` : '';
+      const r = await api(`/api/anno_tasks/${tid}/label_stats?t=${tid}${vf}`);
       window._labelStats = (await r.json()).labels || {};
     } catch (e) { window._labelStats = {}; }
     btn.textContent = '筛选';
@@ -1597,6 +1601,7 @@ async function openClsFilter(btn) {
   const rows = classes.map((c, k) => {
     const cnt = Object.values(window._labelStats)
       .filter(arr => arr.includes(k)).length;
+    if (cnt <= 0) return '';   // 只显示数量>0 的类
     const on = !sel || sel.has(k);
     return `<label class="clsfrow" style="display:flex;align-items:center;gap:8px;
       padding:4px 8px;cursor:pointer;border-radius:4px;font-size:13px"
@@ -1612,7 +1617,7 @@ async function openClsFilter(btn) {
    <div style="display:flex;justify-content:space-between;align-items:center;
     margin-bottom:4px"><b style="font-size:13px">按标签筛选</b>
     <span style="color:#4cc;font-size:12px;cursor:pointer" onclick="clsFilterAll()">全部</span></div>
-   ${rows}
+   ${rows || '<div style=\"color:#888;padding:6px;font-size:12px\">当前范围内暂无标注</div>'}
    <div style="display:flex;gap:6px;margin-top:6px">
     <button style="flex:1;padding:4px" onclick="applyClsFilter()">应用</button>
     <button class="ghost" style="flex:1;padding:4px"
@@ -1622,7 +1627,7 @@ async function openClsFilter(btn) {
   pop.style.left = Math.min(r2.left, innerWidth - 240) + 'px';
   pop.style.top = Math.min(r2.bottom + 4, innerHeight - 260) + 'px';
 }
-function clsFilterChg() {   // 勾选变化时同步“全部”可用状态（实时统计仍以应用为准）
+function clsFilterChg() {   // 勾选变化时同步（实时统计仍以应用为准）
   const chks = [...document.querySelectorAll('#clsfpop .clsfchk')];
   const on = chks.filter(c => c.checked).length;
   if (!on) {   // 一个都不勾＝显示全部（置回全选避免困惑）
