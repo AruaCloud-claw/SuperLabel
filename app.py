@@ -48,6 +48,7 @@ from api.datasets_api import bp as datasets_bp
 from api.stats_api import bp as stats_bp
 from api.anno_tasks_api import bp as anno_tasks_bp
 from api.gallery_api import bp as gallery_bp
+from api.crops_api import bp as crops_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(users_bp)
@@ -56,6 +57,7 @@ app.register_blueprint(datasets_bp)
 app.register_blueprint(stats_bp)
 app.register_blueprint(anno_tasks_bp)
 app.register_blueprint(gallery_bp)
+app.register_blueprint(crops_bp)
 
 
 def ensure_admin():
