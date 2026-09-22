@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8"><title>视频详情 - 标注平台</title>
+<link rel="stylesheet" href="/ui/style.css"></head>
+<body>
+<div id="layout">
+ <div id="nav"></div>
+ <div id="content">
+  <div style="display:flex;align-items:center;margin-bottom:14px">
+   <button class="ghost" onclick="location.href='/ui/videos.html'">← 返回列表</button>
+   <h2 style="margin:0 0 0 14px" id="vdTitle"></h2>
+  </div>
+  <div style="display:flex;gap:18px;align-items:flex-start">
+   <div style="flex:2;background:#000;border-radius:6px;min-width:0">
+    <video id="player" style="width:100%;height:calc(100vh - 220px);min-height:480px;
+     object-fit:contain;display:block" controls autoplay muted></video>
+   </div>
+   <div class="card" style="flex:1;margin:0">
+    <h3>视频信息</h3>
+    <table id="vinfo"></table>
+    <div class="row" style="margin-top:14px">
+     <button onclick="extractHere()">从此视频创建数据集(抽帧)</button>
+     <span class="msg" id="xdmsg"></span>
+    </div>
+   </div>
+  </div>
+ </div>
+</div>
+<script src="/ui/common.js"></script>
+<script src="/ui/video_detail.js"></script>
+<script>authGuard();</script>
+</body></html>

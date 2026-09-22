@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8"><title>数据集广场 - 标注平台</title>
+<link rel="stylesheet" href="/ui/style.css">
+<style>
+ .waterfall{columns:4 240px;column-gap:16px}
+ .gcard{break-inside:avoid;margin-bottom:16px;background:#252526;border-radius:8px;
+  overflow:hidden;cursor:pointer;transition:transform .12s}
+ .gcard:hover{transform:translateY(-3px);box-shadow:0 6px 20px #000a}
+ .gcard img{width:100%;display:block}
+ .ginfo{padding:10px 12px}
+ .ginfo b{color:#9cf;font-size:14px}
+ .gmeta{color:#888;font-size:12px;margin-top:4px}
+</style></head><body>
+<div id="layout">
+ <div id="nav"></div>
+ <div id="content">
+  <h2>数据集广场</h2>
+  <div class="waterfall" id="ggrid">加载中…</div>
+ </div>
+</div>
+<script src="/ui/common.js"></script>
+<script src="/ui/gallery.js"></script>
+<script>authGuard();</script>
+</body></html>

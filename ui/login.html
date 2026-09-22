@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8"><title>登录 - 标注平台</title>
+<link rel="stylesheet" href="/ui/style.css">
+<style>.login-bg .card{background:#252526;padding:36px 44px;border-radius:8px;
+ box-shadow:0 4px 24px #0008;width:320px}
+.login-bg h2{margin:0 0 20px;color:#9cf;font-weight:600}
+.login-bg input{width:100%;padding:9px 10px;margin:6px 0 14px;font-size:14px}
+.login-bg input:focus{outline:1px solid #0e639c}
+.login-bg button{width:100%;padding:10px;font-size:15px}
+#err{color:#f66;min-height:18px;margin-top:10px;text-align:center}</style>
+</head><body class="login-bg">
+<div class="card">
+ <h2>标注平台登录</h2>
+ <input id="u" placeholder="用户名" autofocus>
+ <input id="p" type="password" placeholder="密码">
+ <button onclick="doLogin()">登 录</button>
+ <div id="err"></div>
+</div>
+<script src="/ui/login.js"></script>
+</body></html>

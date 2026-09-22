@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8"><title>数据集管理 - 标注平台</title>
+<link rel="stylesheet" href="/ui/style.css"></head>
+<body>
+<div id="layout">
+ <div id="nav"></div>
+ <div id="content">
+  <div style="display:flex;align-items:center;margin-bottom:16px">
+   <h2 style="flex:1;margin:0">数据集管理</h2>
+   <button onclick="openUpload()">⇧ 上传视频</button>
+  </div>
+  <div class="card">
+   <table id="vtab">
+    <tr><th>ID</th><th>文件名</th><th>大小</th><th>时长</th><th>分辨率</th><th>帧率</th>
+     <th>上传人</th><th>上传时间</th><th>操作</th></tr></table>
+  </div>
+ </div>
+</div>
+
+<!-- 上传悬浮表单 -->
+<div id="upmodal" style="display:none;position:fixed;inset:0;background:#000a;z-index:99;
+ align-items:center;justify-content:center">
+ <div class="card" style="width:520px">
+  <div style="display:flex;align-items:center;margin-bottom:14px">
+   <h3 style="flex:1;margin:0">上传视频</h3>
+   <button class="ghost" onclick="closeUpload()">✕</button>
+  </div>
+  <div id="dropzone">点击选择或拖拽视频文件到此处<br>
+   <span style="font-size:12px">支持 mp4/avi/mov/mkv 等格式，可多选</span>
+   <input id="vfiles" type="file" accept="video/*" multiple style="display:none"></div>
+  <div id="flist" style="margin:12px 0;max-height:160px;overflow:auto"></div>
+  <div style="display:flex;gap:10px;justify-content:flex-end">
+   <button class="ghost" onclick="closeUpload()">取消</button>
+   <button onclick="doUpload()">开始上传</button>
+  </div>
+  <div class="msg" id="upmsg"></div>
+ </div>
+</div>
+
+<script src="/ui/common.js"></script>
+<script src="/ui/videos.js"></script>
+<script>authGuard();</script>
+</body></html>

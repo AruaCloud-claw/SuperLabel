@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8"><title>后台管理 - 标注平台</title>
+<link rel="stylesheet" href="/ui/style.css"></head>
+<body>
+<div id="layout">
+ <div id="nav"></div>
+ <div id="content">
+  <h2>后台管理</h2>
+  <div class="card"><h3>用户管理</h3>
+   <div class="row">
+    <input id="nu" placeholder="用户名" style="width:130px">
+    <input id="np" placeholder="密码" style="width:130px">
+    <input id="nd" placeholder="姓名" style="width:100px">
+    <select id="nr"><option value="annotator">标注员</option>
+     <option value="lead">任务管理员</option><option value="admin">超级管理员</option></select>
+    <button onclick="addUser()">注册账号</button>
+    <span class="msg" id="umsg"></span>
+   </div>
+   <table id="utab"><tr><th>ID</th><th>用户名</th><th>姓名</th><th>角色</th><th>状态</th><th>操作</th></tr></table>
+  </div>
+ </div>
+</div>
+<script src="/ui/common.js"></script>
+<script src="/ui/admin.js"></script>
+<script>authGuard();</script>
+</body></html>

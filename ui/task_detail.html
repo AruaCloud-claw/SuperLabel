@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8"><title>任务详情 - 标注平台</title>
+<link rel="stylesheet" href="/ui/style.css">
+<style>
+ #layout{align-items:stretch;height:100vh}
+ #content{display:flex;flex-direction:column;overflow:hidden}
+ #anno{flex:1;min-height:0;height:auto}
+ #videoCol{width:230px;flex-shrink:0;padding:10px;display:flex;
+  flex-direction:column;min-height:0;overflow:hidden;position:relative}
+ .vmo{padding:6px 16px;cursor:pointer;border-radius:4px;font-size:13px}
+ .vmo:hover{background:#094771}
+ #vlist{overflow-y:auto}
+ .fitem{display:flex;align-items:center;gap:8px;padding:4px 8px;margin-bottom:2px;
+  border-radius:4px;cursor:pointer;font-size:12px}
+ .fitem:hover{background:#333}
+ .fitem.cur{background:#094771}
+ .fitem .annoing{margin-left:auto;color:#fc6;font-size:11px;flex-shrink:0;
+  animation:blink 1.2s infinite}
+ @keyframes blink{50%{opacity:.35}}
+ .fdot{width:10px;height:10px;border-radius:3px;flex-shrink:0;border:1px solid #0006} .vtile{cursor:pointer;border:2px solid transparent;border-radius:6px;overflow:hidden;
+  background:#252526;margin-bottom:10px}
+ .vtile:hover{border-color:#555}
+ .vtile.sel{border-color:#4cc}
+ .vtile img{width:100%;display:block;height:100px;object-fit:cover}
+.vtile p{margin:4px 6px;font-size:12px;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+ .vprog{height:5px;background:#333;border-radius:3px;margin:0 6px 6px;overflow:hidden;
+  display:none}
+ .vtile{position:relative}
+ .vtile .vdel{position:absolute;right:4px;top:4px;display:none;background:#a1260dcc;
+  color:#fff;border:none;border-radius:3px;padding:0 6px;font-size:14px;cursor:pointer;z-index:3}
+ .vtile:hover .vdel{display:block}
+ .vprog i{display:block;height:100%;background:#4cc;width:0%}
+ #display{flex:1;display:flex;flex-direction:column;min-width:0}
+ #bigframe{flex:1;background:#000;display:flex;align-items:center;justify-content:center;
+  overflow:hidden;border-radius:6px;margin-bottom:10px;min-height:0;position:relative}
+ #bigframe img{max-width:100%;max-height:100%;display:block}
+ #strip{background:#252526;border-radius:6px;display:flex;overflow-x:auto;
+  gap:6px;padding:8px}
+ #strip .thumb{position:relative;flex-shrink:0}
+ .tbtn{display:flex;gap:5px;align-items:center;background:#333;color:#ccc;border:none;
+  padding:5px 10px;border-radius:4px;cursor:pointer;font-size:12px}
+ .tbtn:hover{background:#0e639c;color:#fff}
+ .tbtn.active{background:#094771;color:#fff}
+ #strip img{height:120px;width:160px;object-fit:cover;background:#333;
+  border-radius:3px;cursor:pointer;border:2px solid transparent;display:block}
+ #strip .badge{position:absolute;left:4px;top:4px;width:14px;height:14px;border-radius:3px;
+  border:1px solid #0008}
+ #strip .delbtn{position:absolute;right:4px;top:4px;display:none;background:#a1260dcc;
+  color:#fff;border:none;border-radius:3px;padding:0 6px;font-size:14px;cursor:pointer}
+ #strip .thumb:hover .delbtn{display:block}
+ #strip img:hover{border-color:#666}
+ #strip img.sel{border-color:#4cc}
+ #strip .empty{height:96px;color:#666;align-self:center;margin:auto;font-size:13px}
+ .opbtn{display:block;width:100%;margin-bottom:12px;padding:10px;font-size:14px}
+ .card.collapsible .chead{display:flex;align-items:center;gap:6px;cursor:pointer;
+  user-select:none}
+ .card.collapsible .chead::before{content:'▾';color:#888;font-size:12px;transition:transform .15s}
+ .card.collapsible.collapsed .chead::before{transform:rotate(-90deg)}
+ .card.collapsible.collapsed .cbody{display:none}
+ #rightcol{width:300px;flex-shrink:0;overflow-y:auto;
+  align-self:stretch;min-height:0;padding-bottom:10px}
+ #rightcol .card{margin-bottom:14px}
+ #logpanel{max-height:260px;overflow:auto;font-size:12px;color:#bbb}
+</style></head><body>
+<div id="layout">
+ <div id="nav"></div>
+ <div id="content">
+  <!-- 顶部：返回 + 任务名 -->
+  <div style="display:flex;align-items:center;margin-bottom:14px">
+   <button class="ghost" onclick="location.href='/ui/tasks.html'">← 返回任务广场</button>
+   <h2 style="margin:0 0 0 14px" id="tTitle"></h2>
+  </div>
+  <div style="display:flex;gap:18px;align-items:stretch;flex:1;min-height:0">
+   <!-- 左：任务视频竖列 -->
+   <div id="videoCol">
+    <h3 id="coltitle" style="color:#9cf;margin:6px 0 10px;cursor:pointer;user-select:none;
+     display:flex;align-items:center" onclick="toggleViewMenu(event)">
+     <span id="colname">任务视频 ▾</span>
+     <span id="colcount" style="margin-left:auto;color:#888;font-size:12px;font-weight:400"></span>
+    </h3>
+    <div id="viewmenu" style="display:none;position:absolute;z-index:50;background:#252526;
+     border:1px solid #444;border-radius:6px;padding:4px;box-shadow:0 4px 16px #000a">
+     <div class="vmo" onclick="setView('video')">任务视频</div>
+     <div class="vmo" onclick="setView('image')">任务图像</div>
+    </div>
+    <div id="imghdr" style="display:none;align-items:center;gap:8px;padding:2px 4px">
+     <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer">
+      <input type="checkbox" id="selallimgs" onchange="selAllImgs(this.checked)">全选
+     </label>
+     <button class="delsel" id="delselimgs" onclick="askDeleteSelFrames()" disabled>删除所选</button>
+     <button class="tbtn" onclick="locateUnreviewed()" title="定位到列表中第一个未复核（非绿色）的帧">定位</button>
+     <span id="selcount" style="font-size:11px;color:#888"></span>
+    </div>
+    <div id="vlist" style="flex:1;min-height:0">加载中…</div>
+   </div>
+   <!-- 中：抽帧图像显示区 -->
+   <div id="display">
+    <div class="toolbar" style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+     <button class="tbtn active" id="tb-move" onclick="setTool('move')" title="移动：选择/拖动/缩放标注">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg>移动</button>
+     <button class="tbtn" id="tb-rect" onclick="setTool('rect')" title="四边形：点击两点画矩形框">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="6" width="16" height="12" rx="1"/></svg>四边形</button>
+     <button class="tbtn" id="tb-poly" onclick="setTool('poly')" title="多边形：依次点击顶点，双击或点击起点闭合">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 6-3 10H7L4 9z"/></svg>多边形</button>
+     <span style="flex:1"></span>
+     <button class="tbtn" onclick="saveFrame()" title="保存当前帧标注 (S)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>保存</button>
+     <button class="tbtn" onclick="undo()" title="撤销上一步 (Z)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 00-15-6.7L3 13"/></svg>撤销</button>
+     <button class="tbtn" onclick="delSel()" title="删除选中标注 (X)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg>删除</button>
+     <button class="tbtn" onclick="cancelOp()" title="取消当前绘制/取消选择 (Esc)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>取消</button>
+     <span id="fstate" style="color:#7c7;font-size:12px"></span>
+    </div>
+    <div id="bigframe" style="flex:1">
+     <canvas id="bigcv" style="max-width:100%;max-height:100%"></canvas>
+    </div>
+    <div style="display:flex;align-items:center;margin-bottom:4px">
+     <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;margin-right:auto">
+      <input type="checkbox" id="selallstrip" onchange="selAllStrip(this.checked)">全选
+     </label>
+     <button class="delsel" id="delselstrip" onclick="askDeleteSelFrames()" disabled>删除所选</button>
+     <span id="strippos" style="color:#888;font-size:12px"></span></div>
+    <div id="strip"><span class="empty">帧列表（抽帧后显示）</span></div>
+   </div>
+   <!-- 右：任务编辑 + 操作区 -->
+   <div id="rightcol">
+    <div class="card collapsible"><div class="chead"><h3>任务编辑</h3></div><div class="cbody">
+     <div class="row" style="align-items:flex-start"><label style="width:80px">标签集</label>
+      <div style="flex:1">
+       <div id="clsrows"></div>
+       <input type="file" id="clsfile" accept=".txt" style="display:none">
+       <button class="ghost" style="margin-top:6px;padding:3px 10px;font-size:12px"
+        onclick="$('clsfile').click()" title="上传 .txt 文件，每行一个标签，自动分配颜色">
+        📄 上传标签文件</button>
+      </div></div>
+     <div class="row"><label style="width:80px">置信度</label>
+      <input id="tconf" type="number" step="0.01" min="0.001" max="0.9"
+       style="width:80px" title="检测置信度阈值">
+      <label style="margin-left:8px">最大帧数</label>
+      <input id="tlimit" type="number" min="0" value="30" style="width:64px"
+       title="自动标注最多处理帧数，0=全部（测试建议30）">
+      <button onclick="saveTaskCfg()">保存配置</button>
+      <span class="msg" id="tcmsg"></span></div>
+    </div></div>
+    <div class="card collapsible"><div class="chead"><h3>操作区</h3></div><div class="cbody">
+     <span id="selinfo" style="color:#888;display:block;margin-bottom:12px">未选中视频</span>
+     <button class="opbtn" onclick="openExtract()">抽帧</button>
+     <button class="opbtn" onclick="doPrelabel()">自动标注</button>
+     <button class="opbtn" onclick="markReviewed()">人工复核</button>
+     <label style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+      <input type="checkbox" id="autorv" onchange="toggleAutoRv()">
+      <span style="font-size:13px">查看即复核</span></label>
+     <div class="msg" id="opmsg"></div>
+     <div id="extractprog" style="display:none;margin:8px 0">
+      <div style="display:flex;gap:8px;align-items:center">
+       <div class="bar" style="flex:1;margin:0"><i id="exbar" style="width:0%"></i></div>
+       <button class="warn" id="stopbtn" style="padding:2px 10px;font-size:12px"
+        title="停止当前任务" onclick="stopRunningTask()">■ 停止</button>
+      </div>
+      <span id="exstate" style="font-size:12px;color:#888"></span>
+     </div>
+    </div></div>
+    <div class="card collapsible"><div class="chead"><h3>导出与发布</h3></div><div class="cbody">
+     <button class="opbtn" style="background:#a1260d" onclick="doPublish()"
+      title="导出任务池并发布到数据集广场">发布数据集</button>
+     <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:nowrap">
+      <label style="width:60px;flex:none">导出地址</label>
+      <input id="expath" placeholder="如 /mnt/hgfs/VMShare/datasets/out/task1"
+       style="flex:1;min-width:0;font-size:12px" title="服务器上的目录路径">
+      <button style="flex:none" onclick="openFsBrowser()" title="浏览选择目录">选择</button>
+     </div>
+     <div class="row"><label style="width:60px">导出格式</label>
+      <select id="exfmt" style="flex:1"><option value="yolo">YOLO (txt)</option></select>
+      <button onclick="doExport()">导出</button></div>
+     <div class="msg" id="exmsg2"></div>
+    </div></div>
+    <div class="card collapsible"><div class="chead"><h3>标注详情</h3></div><div class="cbody">
+     <div style="font-size:12px;font-weight:600;color:#9cf;margin-bottom:4px">当前图片</div>
+     <div id="annodetail" style="font-size:12px;color:#bbb">暂无标注</div>
+     <div style="font-size:12px;font-weight:600;color:#9cf;margin:10px 0 4px">当前视频 <span id="vstatname" style="color:#888;font-weight:400"></span></div>
+     <div id="videostat" style="font-size:12px;color:#bbb">未选择视频</div>
+     <div style="font-size:12px;font-weight:600;color:#9cf;margin:10px 0 4px">所选范围 <span id="rstatname" style="color:#888;font-weight:400"></span></div>
+     <div id="rangestat" style="font-size:12px;color:#bbb">未勾选图像</div>
+     <button class="ghost" id="relabelsel" style="display:none;margin-top:8px;padding:4px 10px"
+      onclick="openBatchRelabel()">批量替换所选范围的标签…</button>
+    </div></div>
+   </div>
+  </div>
+ </div>
+</div>
+
+<!-- 追加视频选择悬浮窗 -->
+<div id="avmodal" style="display:none;position:fixed;inset:0;background:#000a;z-index:99;
+ align-items:center;justify-content:center">
+ <div class="card" style="width:520px">
+  <div style="display:flex;align-items:center;margin-bottom:14px">
+   <h3 style="flex:1;margin:0">添加视频到任务</h3>
+   <button class="ghost" onclick="closeAddVideo()">✕</button>
+  </div>
+  <div id="avlist" style="max-height:260px;overflow:auto;background:#333;
+   border:1px solid #444;border-radius:3px;padding:6px 10px">加载中…</div>
+  <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
+   <button class="ghost" onclick="location.href='/ui/videos.html'">去上传新视频</button>
+   <button onclick="doAddVideos()">添加所选</button>
+  </div>
+  <div class="msg" id="avmsg"></div>
+ </div>
+</div>
+
+<!-- 目录浏览器弹窗 -->
+<div id="fsmodal" style="display:none;position:fixed;inset:0;background:#000a;z-index:140;
+ align-items:center;justify-content:center">
+ <div class="card" style="width:520px">
+  <div style="display:flex;align-items:center;margin-bottom:10px">
+   <h3 style="flex:1;margin:0">选择导出目录</h3>
+   <button class="ghost" onclick="$('fsmodal').style.display='none'">✕</button>
+  </div>
+  <div id="fscur" style="font-family:monospace;font-size:12px;color:#9cf;margin-bottom:8px;
+   word-break:break-all"></div>
+  <div id="fslist" style="max-height:280px;overflow:auto;background:#333;
+   border:1px solid #444;border-radius:4px;padding:4px"></div>
+  <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px">
+   <button class="ghost" onclick="fsUp()">上一级</button>
+   <button onclick="fsPick()">选择当前目录</button>
+  </div>
+ </div>
+</div>
+
+<!-- 删除帧确认弹窗 -->
+<div id="delmodal" style="display:none;position:fixed;inset:0;background:#000a;z-index:130;
+ align-items:center;justify-content:center">
+ <div class="card" style="width:400px">
+  <h3>删除确认</h3>
+  <p id="deltext" style="margin:6px 0 14px">将删除该帧图片及其标签文件，<span style="color:#f66">此操作不可逆</span>。</p>
+  <label style="display:flex;gap:8px;align-items:center;margin-bottom:14px">
+   <input type="checkbox" id="noask"> 下次不再提示</label>
+  <div style="display:flex;gap:10px;justify-content:flex-end">
+   <button class="ghost" onclick="$('delmodal').style.display='none'">取消</button>
+   <button class="warn" onclick="doDeleteFrame()">确认删除</button>
+  </div>
+ </div>
+</div>
+
+<!-- 新框标签选择悬浮框 -->
+<div id="clspop" style="display:none;position:fixed;z-index:120;background:#252526;
+ border:1px solid #444;border-radius:6px;padding:6px;min-width:140px;box-shadow:0 4px 16px #000a"></div>
+
+<!-- 抽帧参数悬浮窗 -->
+<div id="exmodal" style="display:none;position:fixed;inset:0;background:#000a;z-index:99;
+ align-items:center;justify-content:center">
+ <div class="card" style="width:420px">
+  <div style="display:flex;align-items:center;margin-bottom:14px">
+   <h3 style="flex:1;margin:0">抽帧参数</h3>
+   <button class="ghost" onclick="closeExtract()">✕</button>
+  </div>
+  <div class="row" style="align-items:flex-start"><label style="width:90px">目标视频</label>
+   <div id="exvideos" style="flex:1;max-height:200px;overflow:auto;background:#333;
+    border:1px solid #444;border-radius:3px;padding:6px 10px"></div></div>
+  <div class="row"><label style="width:90px">抽帧帧率</label>
+   <input id="exfps" value="5" style="width:80px"> <span style="color:#888">帧/秒</span></div>
+  <div class="msg" id="exmsg"></div>
+  <div style="display:flex;gap:10px;justify-content:flex-end">
+   <button class="ghost" onclick="closeExtract()">取消</button>
+   <button onclick="doExtract()">开始抽帧</button>
+  </div>
+ </div>
+</div>
+
+<script>window.onerror=function(m,s,l){alert('JS错误: '+m+'\n行号:'+l)};</script>
+<script src="/ui/common.js?v=32"></script>
+<script src="/ui/task_detail.js?v=39"></script>
+<script>authGuard();</script>
+</body></html>
+<style>
+ .fitem .fsel{flex-shrink:0;margin:0}
+ .fitem .selhere{display:none;background:#0e639c;color:#fff;border:none;border-radius:3px;
+  padding:1px 6px;font-size:11px;cursor:pointer;flex-shrink:0;margin-left:auto}
+ .fitem:hover .selhere{display:block}
+ .fitem .annoing{margin-left:6px}
+ .statrow{display:flex;align-items:center;gap:8px;padding:2px 4px;border-radius:3px}
+ .statrow:hover{background:#333}
+ #strip .fselthumb{position:absolute;right:4px;bottom:4px;margin:0;z-index:3;cursor:pointer;
+  opacity:0;transition:opacity .12s}
+ #strip .thumb:hover .fselthumb,#strip .fselthumb:checked{opacity:1}
+ .delsel{background:#a1260d;color:#fff;border:none;border-radius:4px;
+  padding:3px 10px;font-size:12px;cursor:pointer}
+ .delsel:disabled{background:#555;color:#999;cursor:default}
+ .delsel:not(:disabled):hover{background:#c43e17}
+</style>

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8"><title>任务广场 - 标注平台</title>
+<link rel="stylesheet" href="/ui/style.css"></head>
+<body>
+<div id="layout">
+ <div id="nav"></div>
+ <div id="content">
+  <div style="display:flex;align-items:center;margin-bottom:16px">
+   <h2 style="flex:1;margin:0">任务广场</h2>
+   <button onclick="openNew()">＋ 新建任务</button>
+  </div>
+  <div class="card">
+   <table id="ttab">
+    <tr><th>ID</th><th>任务名</th><th>视频数</th><th>备注</th><th>状态</th>
+     <th>创建人</th><th>创建时间</th><th>操作</th></tr></table>
+  </div>
+ </div>
+</div>
+
+<!-- 新建任务悬浮表单 -->
+<div id="ntmodal" style="display:none;position:fixed;inset:0;background:#000a;z-index:99;
+ align-items:center;justify-content:center">
+ <div class="card" style="width:520px">
+  <div style="display:flex;align-items:center;margin-bottom:14px">
+   <h3 style="flex:1;margin:0">新建任务</h3>
+   <button class="ghost" onclick="closeNew()">✕</button>
+  </div>
+  <div class="row"><label style="width:70px">任务名</label>
+   <input id="tn" placeholder="任务名" style="flex:1"></div>
+  <div class="row"><label style="width:70px">数据来源</label>
+   <div id="tsel" style="flex:1;max-height:180px;overflow:auto;background:#333;
+    border:1px solid #444;border-radius:3px;padding:6px 10px">加载中…</div></div>
+  <div class="row"><label style="width:70px">备注</label>
+   <textarea id="tnote" rows="3" style="flex:1;background:#333;color:#eee;
+    border:1px solid #444;border-radius:3px;padding:6px 8px"></textarea></div>
+  <div style="display:flex;gap:10px;justify-content:flex-end">
+   <button class="ghost" onclick="closeNew()">取消</button>
+   <button onclick="createTask()">创建</button>
+  </div>
+  <div class="msg" id="tmsg"></div>
+ </div>
+</div>
+
+<script src="/ui/common.js"></script>
+<script src="/ui/tasks.js"></script>
+<script>authGuard();</script>
+</body></html>

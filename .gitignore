@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+data/
+weights/
+*.db
+*.log
+*.rar
+nohup.out

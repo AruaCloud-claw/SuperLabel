@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8"><title>数据集详情 - 标注平台</title>
+<link rel="stylesheet" href="/ui/style.css">
+<style>
+ .dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+ .dcell{background:#252526;border-radius:6px;overflow:hidden;cursor:pointer}
+ .dcell img{width:100%;height:140px;object-fit:cover;display:block}
+ .dcell p{margin:0;padding:4px 8px;font-size:11px;color:#888}
+ .dcell.cur{outline:2px solid #4cc}
+ #viewer{position:fixed;inset:0;background:#000d;z-index:150;display:none;
+  align-items:center;justify-content:center}
+ #viewer img{max-width:94vw;max-height:88vh}
+</style></head><body>
+<div id="layout">
+ <div id="nav"></div>
+ <div id="content">
+  <div style="display:flex;align-items:center;margin-bottom:14px">
+   <button class="ghost" onclick="location.href='/ui/gallery.html'">← 返回广场</button>
+   <h2 style="margin:0 0 0 14px" id="dTitle"></h2>
+  </div>
+  <div class="card" id="dMeta">加载中…</div>
+  <div class="dgrid" id="dgrid"></div>
+ </div>
+</div>
+<div id="viewer" onclick="this.style.display='none'"><img id="viewimg" alt=""></div>
+<script src="/ui/common.js"></script>
+<script src="/ui/gallery_detail.js"></script>
+<script>authGuard();</script>
+</body></html>
