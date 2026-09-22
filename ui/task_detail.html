@@ -124,6 +124,7 @@
      <canvas id="bigcv" style="max-width:100%;max-height:100%"></canvas>
     </div>
     <div style="display:flex;align-items:center;margin-bottom:4px">
+     <button class="tbtn" id="fsbtn" onclick="toggleFullscreen()" title="全屏显示主显示区（Esc 退出）">全屏</button>
      <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;margin-right:auto">
       <input type="checkbox" id="selallstrip" onchange="selAllStrip(this.checked)">全选
      </label>
@@ -270,6 +271,8 @@
  .delsel{background:#a1260d;color:#fff;border:none;border-radius:4px;
   padding:3px 10px;font-size:12px;cursor:pointer}
  .delsel:disabled{background:#555;color:#999;cursor:default}
+ #display:fullscreen{background:#1e1e1e;padding:12px}
+ #display:fullscreen #bigframe{flex:1}
  .delsel:not(:disabled):hover{background:#c43e17}
  @keyframes fsind{0%{margin-left:-30%}100%{margin-left:100%}}
 </style>
