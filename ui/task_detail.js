@@ -625,7 +625,7 @@ function bindCanvas() {
 function pushHist() {   // 纯快照：只记撤销历史，不标脏（避免“仅选中”也触发自动保存）
   hist.push(JSON.stringify(dboxes)); if (hist.length > 50) hist.shift();
 }
-function markChanged() { changed = true; scheduleAutoSave(); }
+function markChanged() { changed = true; scheduleAutoSave(); window._labelStats = null; }   // 标注变化后标签统计失效
 function delSel() {
   const idxs = selIdxs().filter(i => dboxes[i]).sort((a, b) => b - a);
   if (!idxs.length) return;
@@ -1145,9 +1145,13 @@ function toggleViewMenu(e) {
   const m = document.getElementById('viewmenu');
   m.style.display = m.style.display === 'block' ? 'none' : 'block';
 }
-document.addEventListener('click', () => {
+document.addEventListener('click', e => {
   const m = document.getElementById('viewmenu');
   if (m) m.style.display = 'none';
+  const fp = document.getElementById('clsfpop');   // 点击筛选弹窗外部时关闭
+  if (fp && fp.style.display === 'block' && !fp.contains(e.target) &&
+      !(e.target.closest && e.target.closest('.tbtn') &&
+        e.target.textContent === '筛选')) fp.style.display = 'none';
 });
 function setView(mode) {
   const ih = document.getElementById('imghdr');
@@ -1161,9 +1165,12 @@ function setView(mode) {
 function renderLeft() {
   const cnt = document.getElementById('colcount');
   if (window._viewMode === 'image') {
-    if (cnt) cnt.textContent = frameList.length ? `共${frameList.length}个图片` : '';
+    if (cnt) { const vn = frameList.filter((f, i) => clsFilterHit(f, i)).length;
+      cnt.textContent = frameList.length ? `共${vn}个图片${vn !== frameList.length ? '（已筛选）' : ''}` : ''; }
     const _st = $('vlist').scrollTop;   // 保存滚动位置，重建后恢复
-    $('vlist').innerHTML = frameList.length ? frameList.map((f, i) => {
+    $('vlist').innerHTML = frameList.length ? frameList.map((f, i) => ({ f, i }))
+      .filter(o => clsFilterHit(o.f, o.i))
+      .map(({ f, i }) => {
       const c = f.reviewed ? '#3c6' : (f.boxes > 0 ? '#fc3' : '#888');
       const t = f.reviewed ? '已复核' : (f.boxes > 0 ? '已自动标注' : '未标注');
       const g = giOf(f, i), ck = window._selFrames.has(g) ? 'checked' : '';
@@ -1177,7 +1184,7 @@ function renderLeft() {
         onclick="event.stopPropagation();selRangeTo(${g})">选择到这里</button>
        ${i === window._prelabelCur ? '<span class="annoing">标注中...</span>' : ''}
       </div>`;
-    }).join('') : '<div style="color:#666;padding:8px;font-size:12px">任务池暂无帧</div>';
+      }).join('') : '<div style="color:#666;padding:8px;font-size:12px">任务池暂无帧</div>';
     $('vlist').scrollTop = _st;
     if (window._curFrame != null) highlightFrameItem(window._curFrame);
   } else {
@@ -1568,10 +1575,82 @@ function toggleSelFrame(gi, on) {
   }
   syncSelUI();
 }
-function locateUnreviewed() {   // 定位第一个未复核（非绿色）帧并打开
-  const i = frameList.findIndex(f => !f.reviewed);
+function locateUnreviewed() {   // 定位第一个未复核（非绿色）帧并打开（跳过被筛选隐藏的）
+  const i = frameList.findIndex((f, k) => !f.reviewed && clsFilterHit(f, k));
   if (i < 0) { toast('没有未复核的帧，全部已复核 ✓', 'info'); return; }
   jumpToFrame(i);
+}
+/* ===== 标签筛选（任务图像列表） ===== */
+window._labelStats = null;   // {gi: [cls,...]}，打开筛选时拉取
+window._clsFilter = null;    // null=不过滤；否则 Set(选中的类别号)
+async function openClsFilter(btn) {
+  if (!window._labelStats) {
+    btn.textContent = '统计中…';
+    try {
+      const r = await api(`/api/anno_tasks/${tid}/label_stats`);
+      window._labelStats = (await r.json()).labels || {};
+    } catch (e) { window._labelStats = {}; }
+    btn.textContent = '筛选';
+  }
+  const pop = document.getElementById('clsfpop');
+  const sel = window._clsFilter;
+  const rows = classes.map((c, k) => {
+    const cnt = Object.values(window._labelStats)
+      .filter(arr => arr.includes(k)).length;
+    const on = !sel || sel.has(k);
+    return `<label class="clsfrow" style="display:flex;align-items:center;gap:8px;
+      padding:4px 8px;cursor:pointer;border-radius:4px;font-size:13px"
+      onmouseover="this.style.background='#333'" onmouseout="this.style.background='none'">
+     <input type="checkbox" class="clsfchk" data-k="${k}" ${on ? 'checked' : ''}
+      onchange="clsFilterChg()">
+     <span style="width:12px;height:12px;border-radius:2px;background:${c.color};
+      flex:none;display:inline-block"></span>
+     <span style="flex:1">${c.name}</span>
+     <span style="color:#888;font-size:12px">${cnt} 帧</span></label>`;
+  }).join('');
+  pop.innerHTML = `
+   <div style="display:flex;justify-content:space-between;align-items:center;
+    margin-bottom:4px"><b style="font-size:13px">按标签筛选</b>
+    <span style="color:#4cc;font-size:12px;cursor:pointer" onclick="clsFilterAll()">全部</span></div>
+   ${rows}
+   <div style="display:flex;gap:6px;margin-top:6px">
+    <button style="flex:1;padding:4px" onclick="applyClsFilter()">应用</button>
+    <button class="ghost" style="flex:1;padding:4px"
+     onclick=\"document.getElementById('clsfpop').style.display='none'\">取消</button></div>`;
+  const r2 = btn.getBoundingClientRect();
+  pop.style.display = 'block';
+  pop.style.left = Math.min(r2.left, innerWidth - 240) + 'px';
+  pop.style.top = Math.min(r2.bottom + 4, innerHeight - 260) + 'px';
+}
+function clsFilterChg() {   // 勾选变化时同步“全部”可用状态（实时统计仍以应用为准）
+  const chks = [...document.querySelectorAll('#clsfpop .clsfchk')];
+  const on = chks.filter(c => c.checked).length;
+  if (!on) {   // 一个都不勾＝显示全部（置回全选避免困惑）
+    chks.forEach(c => c.checked = true);
+    toast('至少勾选一类，已重置为全部', 'info');
+  }
+}
+function clsFilterAll() {
+  document.querySelectorAll('#clsfpop .clsfchk').forEach(c => c.checked = true);
+  window._clsFilter = null;
+  applyClsFilter();
+}
+function applyClsFilter() {
+  const ks = [...document.querySelectorAll('#clsfpop .clsfchk')]
+    .filter(c => c.checked).map(c => +c.dataset.k);
+  window._clsFilter = (ks.length && ks.length < classes.length) ? new Set(ks) : null;
+  document.getElementById('clsfpop').style.display = 'none';
+  renderLeft();
+  const fbtn = [...document.querySelectorAll('.tbtn')].find(b => b.textContent === '筛选');
+  if (fbtn) {
+    fbtn.textContent = window._clsFilter ? `筛选(${window._clsFilter.size})` : '筛选';
+    fbtn.classList.toggle('active', !!window._clsFilter);
+  }
+}
+function clsFilterHit(f, i) {   // 帧是否通过筛选
+  if (!window._clsFilter) return true;
+  const arr = (window._labelStats || {})[giOf(f, i)] || [];
+  return arr.some(k => window._clsFilter.has(k));
 }
 function selAllImgs(on) {   // 左栏列表全选（当前显示的帧）
   frameList.forEach(f => {
