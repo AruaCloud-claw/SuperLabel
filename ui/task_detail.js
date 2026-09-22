@@ -1400,60 +1400,30 @@ function toServerPath(p) {
     return '/mnt/hgfs/VMShare/' + p.slice('D:\\VMShare\\'.length).replace(/\\/g, '/');
   return p;
 }
+/* ===== 导出（打包 zip 浏览器下载） ===== */
 async function doExport() {
-  const disp = $('expath').value.trim();
   const format = $('exfmt').value;
-  if (!disp) { $('exmsg2').textContent = '请填写导出目录'; return; }
-  $('exmsg2').textContent = '导出中…';
-  const r = await api(`/api/anno_tasks/${tid}/export`, { method: 'POST',
-    body: JSON.stringify({ path: toServerPath(disp), format }) });
-  const res = await r.json();
-  if (!res.ok) { $('exmsg2').textContent = res.err || '导出失败'; return; }
-  $('exmsg2').textContent = `✓ 已导出 ${res.images} 张图到 ${toClientPath(res.path)}`;
-}
-
-/* ===== 目录浏览器 ===== */
-let fsCurPath = '';
-async function openFsBrowser() {
-  fsCurPath = $('expath').value.trim() ||
-    '/mnt/hgfs/VMShare/datasets';
-  await fsLoad();
-  $('fsmodal').style.display = 'flex';
-}
-async function fsLoad() {
-  $('fslist').innerHTML = '<div style="color:#888;padding:6px">加载中…</div>';
-  const r = await api('/api/fs/dirs?path=' + encodeURIComponent(fsCurPath));
-  if (!r.ok) {
-    $('fslist').innerHTML = '<div style="color:#f66;padding:6px">无法打开该目录</div>';
-    $('fscur').textContent = fsCurPath;
-    return;
+  $('exmsg2').textContent = '打包中…（帧多时请稍候）';
+  try {
+    const r = await api(`/api/anno_tasks/${tid}/export_zip?format=${format}`);
+    if (!r.ok) {
+      const res = await r.json().catch(() => ({}));
+      $('exmsg2').textContent = res.err || '导出失败';
+      return;
+    }
+    const blob = await r.blob();
+    const cd = r.headers.get('Content-Disposition') || '';
+    const m = cd.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+    let name = m ? decodeURIComponent(m[1]) : `task${tid}_yolo.zip`;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+    $('exmsg2').textContent = `✓ 已打包下载 ${name}`;
+  } catch (err) {
+    $('exmsg2').textContent = '导出失败：' + (err.message || err);
   }
-  const d = await r.json();
-  fsCurPath = d.path;
-  $('fscur').textContent = fsCurPath;
-  $('fslist').innerHTML = d.dirs.length
-    ? d.dirs.map(x => `<div class="fsitem" onclick="fsEnter('${x.replace(/'/g, "\\'")}')"
-        style="padding:4px 8px;cursor:pointer;border-radius:3px;font-size:13px"
-        onmouseover="this.style.background='#444'" onmouseout="this.style.background='none'">📁 ${x}</div>`).join('')
-    : '<div style="color:#888;padding:6px">（无子目录）</div>';
-}
-async function fsEnter(name) {
-  fsCurPath = fsCurPath.replace(/\/$/, '') + '/' + name;
-  await fsLoad();
-}
-async function fsUp() {
-  const r = await api('/api/fs/dirs?path=' + encodeURIComponent(fsCurPath));
-  if (r.ok) {
-    const d = await r.json();
-    fsCurPath = d.parent;
-  } else {
-    fsCurPath = fsCurPath.replace(/\/[^/]+$/, '') || '/';
-  }
-  await fsLoad();
-}
-function fsPick() {
-  $('expath').value = toClientPath(fsCurPath);   // 选择结果转成客户端地址
-  $('fsmodal').style.display = 'none';
 }
 
 /* ===== 发布数据集 ===== */
