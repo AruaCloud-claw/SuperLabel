@@ -172,15 +172,9 @@
     <div class="card collapsible"><div class="chead"><h3>导出与发布</h3></div><div class="cbody">
      <button class="opbtn" style="background:#a1260d" onclick="doPublish()"
       title="导出任务池并发布到数据集广场">发布数据集</button>
-     <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:nowrap">
-      <label style="width:60px;flex:none">导出地址</label>
-      <input id="expath" placeholder="如 D:\\VMShare\\datasets\\out\\task1（客户端地址）"
-       style="flex:1;min-width:0;font-size:12px" title="服务器上的目录路径">
-      <button style="flex:none" onclick="openFsBrowser()" title="浏览选择目录">选择</button>
-     </div>
      <div class="row"><label style="width:60px">导出格式</label>
       <select id="exfmt" style="flex:1"><option value="yolo">YOLO (txt)</option></select>
-      <button onclick="doExport()">导出</button></div>
+      <button onclick="doExport()" title="打包为 zip 下载到本机">导出</button></div>
      <div class="msg" id="exmsg2"></div>
     </div></div>
     <div class="card collapsible"><div class="chead"><h3>标注详情</h3></div><div class="cbody">
@@ -216,24 +210,6 @@
  </div>
 </div>
 
-<!-- 目录浏览器弹窗 -->
-<div id="fsmodal" style="display:none;position:fixed;inset:0;background:#000a;z-index:140;
- align-items:center;justify-content:center">
- <div class="card" style="width:520px">
-  <div style="display:flex;align-items:center;margin-bottom:10px">
-   <h3 style="flex:1;margin:0">选择导出目录</h3>
-   <button class="ghost" onclick="$('fsmodal').style.display='none'">✕</button>
-  </div>
-  <div id="fscur" style="font-family:monospace;font-size:12px;color:#9cf;margin-bottom:8px;
-   word-break:break-all"></div>
-  <div id="fslist" style="max-height:280px;overflow:auto;background:#333;
-   border:1px solid #444;border-radius:4px;padding:4px"></div>
-  <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px">
-   <button class="ghost" onclick="fsUp()">上一级</button>
-   <button onclick="fsPick()">选择当前目录</button>
-  </div>
- </div>
-</div>
 
 <!-- 删除帧确认弹窗 -->
 <div id="delmodal" style="display:none;position:fixed;inset:0;background:#000a;z-index:130;
