@@ -91,6 +91,7 @@ async function loadDetail() {
 function giOf(f, fallback) { return f && f.gi !== undefined ? f.gi : (f ? f.i : fallback); }
 /* 帧列表加载（统一入口）：应用当前视频过滤器（window._videoFilter=null=全池） */
 async function fetchFrames() {
+  if (!curDs) return [];   // 新任务尚未创建帧池数据集（未抽过帧）
   let url = `/api/ds/${curDs.id}/frames`;
   if (window._videoFilter)
     url += `?video_id=${window._videoFilter}&task_id=${tid}`;
@@ -150,7 +151,7 @@ function selVideo(id, name) {
   reloadFrames().then(() => {
     const tv = (window._taskVideos || []).find(x => x.id === id);
     if (frameList.length) jumpToFrame(0);
-    else toast('该视频尚未抽帧', 'info');
+    else toast('该视频尚未抽帧，请先在右侧“操作区”抽帧', 'info');
   });
 }
 /* 按当前过滤重新拉帧并刷新显示 */
