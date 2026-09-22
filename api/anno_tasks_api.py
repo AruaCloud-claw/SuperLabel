@@ -545,6 +545,31 @@ def api_task_export_zip(tid):
                      download_name=f"{safe_name}_yolo.zip")
 
 
+@bp.route("/api/anno_tasks/<int:tid>/label_stats")
+@require()
+def api_label_stats(tid):
+    """每帧包含的标签类别：{gi: [cls,...]}，用于前端按标签筛选帧列表。"""
+    import api.datasets_api as _dda
+    ds = db.q1("SELECT * FROM datasets WHERE name=?", (f"task{tid}_pool",))
+    if not ds:
+        return jsonify({"labels": {}})
+    ldir = xlate_path(ds["label_dir"])
+    out = {}
+    for gi, rel in enumerate(_dda._frames(ds)):
+        lp = os.path.join(ldir, *os.path.splitext(rel)[0].split("/")) + ".txt"
+        cl = set()
+        try:
+            with open(lp, encoding="utf-8") as fh:
+                for line in fh:
+                    t = line.split()
+                    if t:
+                        cl.add(int(t[0]))
+        except OSError:
+            pass
+        out[str(gi)] = sorted(cl)
+    return jsonify({"labels": out})
+
+
 @bp.route("/api/anno_tasks/<int:tid>/publish", methods=["POST"])
 @require("admin", "lead", "annotator")
 def api_task_publish(tid):
