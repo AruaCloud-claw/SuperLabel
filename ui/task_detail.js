@@ -1400,6 +1400,20 @@ function toServerPath(p) {
     return '/mnt/hgfs/VMShare/' + p.slice('D:\\VMShare\\'.length).replace(/\\/g, '/');
   return p;
 }
+/* ===== 全屏标注 ===== */
+function toggleFullscreen() {
+  const el = document.getElementById('display');
+  if (!document.fullscreenElement)
+    el.requestFullscreen().catch(e => toast('全屏失败：' + e.message, 'err'));
+  else document.exitFullscreen();
+}
+document.addEventListener('fullscreenchange', () => {
+  const fs = !!document.fullscreenElement;
+  const b = document.getElementById('fsbtn');
+  if (b) b.textContent = fs ? '退出全屏' : '全屏';
+  setTimeout(drawBig, 120);   // 尺寸变化后重绘大图
+});
+
 /* ===== 导出（打包 zip 浏览器下载，带进度条 + 停止按钮） ===== */
 let exportAbort = null;
 async function doExport() {
