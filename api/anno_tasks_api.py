@@ -506,6 +506,45 @@ def api_fs_dirs():
     return jsonify({"path": p, "parent": os.path.dirname(p) or "/", "dirs": dirs[:200]})
 
 
+@bp.route("/api/anno_tasks/<int:tid>/export_zip")
+@require()
+def api_task_export_zip(tid):
+    """导出任务池为 YOLO 压缩包，直接流式下载到客户端（不落服务器目录）。"""
+    import io, zipfile
+    from flask import send_file
+    t = db.q1("SELECT * FROM anno_tasks WHERE id=?", (tid,))
+    if not t:
+        return jsonify({"err": "task not found"}), 404
+    ds = db.q1("SELECT * FROM datasets WHERE name=?", (f"task{tid}_pool",))
+    if not ds:
+        return jsonify({"err": "任务池尚无帧"}), 400
+    fdir, ldir = xlate_path(ds["frame_dir"]), xlate_path(ds["label_dir"])
+    safe_name = "".join(c for c in t["name"] if c not in '\\/:*?"<>|').strip() or f"task{tid}"
+    cls = json.loads(t["classes_json"] or '[{"name":"excavator"}]')
+    names = [c["name"] if isinstance(c, dict) else c for c in cls]
+    import api.datasets_api as _dda
+    buf = io.BytesIO()
+    n = 0
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for rel in _dda._frames(ds):
+            base = rel.split("/")[-1]
+            src = os.path.join(fdir, *rel.split("/"))
+            if not os.path.isfile(src):
+                continue
+            z.write(src, f"{safe_name}/images/{base}")
+            n += 1
+            lp = os.path.join(ldir, *os.path.splitext(rel)[0].split("/")) + ".txt"
+            if os.path.exists(lp):
+                z.write(lp, f"{safe_name}/labels/{os.path.basename(lp)}")
+        z.writestr(f"{safe_name}/dataset.yaml",
+                   "path: .\ntrain: images\nval: images\nnames:\n" +
+                   "\n".join(f"  {i}: {c}" for i, c in enumerate(names)))
+    db.audit(request.user["id"], "export_task_zip", t["name"], f"{n} imgs")
+    buf.seek(0)
+    return send_file(buf, mimetype="application/zip", as_attachment=True,
+                     download_name=f"{safe_name}_yolo.zip")
+
+
 @bp.route("/api/anno_tasks/<int:tid>/publish", methods=["POST"])
 @require("admin", "lead", "annotator")
 def api_task_publish(tid):
