@@ -1037,6 +1037,7 @@ function finishPoly(e) {
 cv.addEventListener('dblclick', e => {
   if (tool === 'poly' && polyPts.length >= 3) { finishPoly(e); return; }
   // 双击快速进入标注状态（四边形绘制模式）
+  if (space) { tempEnter(false); e.preventDefault(); return; }   // 空格/Ctrl 切出的移动：切回
   if (tool === 'move') { setTool('rect'); e.preventDefault(); }
 });
 
