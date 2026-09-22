@@ -10,6 +10,7 @@ async function loadTasks() {
       <td>${t.note || ''}</td><td>${t.status}</td><td>${t.creator || ''}</td>
       <td>${t.created_at}</td>
       <td><button onclick="tDetail(${t.id})">详情</button>
+      <button onclick="location.href='/ui/crops.html?id=${t.id}&name=${encodeURIComponent(t.name)}'">审查</button>
       <button class="warn" onclick="tDel(${t.id},'${t.name}')">删除</button></td></tr>`).join('')
      : '<tr><td colspan=8 style="color:#666">暂无任务，点击右上「新建任务」</td></tr>');
 }
