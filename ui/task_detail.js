@@ -29,9 +29,33 @@ function tempEnter(on) {
 function tempToggle() { tempEnter(!space); }
 const cv = document.getElementById('bigcv'), ctx = cv.getContext('2d');
 
+/* URL 参数跳转定位（来自切片审查页「去修正」）：?gi=<帧>&box=<框序号> */
+let _flashTimer = null;
+async function jumpFromUrl() {
+  const q = new URLSearchParams(location.search);
+  const gi = Number(q.get('gi')), box = Number(q.get('box'));
+  if (!q.has('gi') || !Number.isInteger(gi)) return;
+  const i = frameList.findIndex(f => giOf(f, undefined) === gi);
+  if (i < 0) { toast('未找到目标帧（可能不在当前显示范围）', 'err'); return; }
+  await showFrame(i);
+  if (Number.isInteger(box) && dboxes[box]) {
+    sel = box; selSet = new Set([box]);
+    window._flashBox = { until: Date.now() + 2500 };
+    if (_flashTimer) clearInterval(_flashTimer);
+    _flashTimer = setInterval(() => {
+      if (Date.now() > window._flashBox.until) { clearInterval(_flashTimer); _flashTimer = null; }
+      drawBig();
+    }, 250);
+    toast(`已定位到第 ${box + 1} 个标注框，可直接修改`, 'ok');
+  } else {
+    toast('已定位到目标帧', 'ok');
+  }
+  history.replaceState(null, '', location.pathname + '?id=' + tid);   // 清参数防刷新重复跳
+}
+
 function onPageReady() {
   if (localStorage.getItem('autoRv') === '1') $('autorv').checked = true;
-  loadDetail();
+  loadDetail().then(jumpFromUrl).catch(() => {});
   pollLogs().then(() => {   // 有进行中任务则恢复轮询（刷新后进度条不断）
     if (!pollTimer && window._hasRunning) pollTimer = setInterval(pollLogs, 1500);
   });
@@ -330,6 +354,28 @@ function drawBig() {
         }
       }
     });
+    // 跳转定位闪烁高亮（来自切片审查页）
+    if (window._flashBox && Date.now() < window._flashBox.until) {
+      const b = dboxes[sel];
+      if (b) {
+        ctx.save();
+        ctx.strokeStyle = '#f0f'; ctx.lineWidth = 4;
+        ctx.setLineDash([8, 5]);
+        if (b[0] === 'poly') {
+          ctx.beginPath();
+          for (let k = 0; k < (b.length - 2) / 2; k++) {
+            const px = b[2 + k * 2] * cv.width, py = b[3 + k * 2] * cv.height;
+            if (k) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+          }
+          ctx.closePath(); ctx.stroke();
+        } else {
+          const x = b[0] * cv.width, y = b[1] * cv.height,
+                w = (b[2] - b[0]) * cv.width, h = (b[3] - b[1]) * cv.height;
+          ctx.strokeRect(x - 3, y - 3, w + 6, h + 6);
+        }
+        ctx.restore();
+      }
+    }
     // 多边形绘制预览
     if (polyPts.length && tool === 'poly') {
       ctx.strokeStyle = '#4cc'; ctx.lineWidth = 1.5;
