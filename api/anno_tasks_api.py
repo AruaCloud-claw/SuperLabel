@@ -548,14 +548,21 @@ def api_task_export_zip(tid):
 @bp.route("/api/anno_tasks/<int:tid>/label_stats")
 @require()
 def api_label_stats(tid):
-    """每帧包含的标签类别：{gi: [cls,...]}，用于前端按标签筛选帧列表。"""
+    """每帧包含的标签类别：{gi: [cls,...]}，用于前端按标签筛选帧列表。
+    支持 video_id 参数：仅统计当前显示范围（同帧列表过滤逻辑）。"""
     import api.datasets_api as _dda
     ds = db.q1("SELECT * FROM datasets WHERE name=?", (f"task{tid}_pool",))
     if not ds:
         return jsonify({"labels": {}})
+    vid = request.args.get("video_id", type=int)
+    vf_set = None
+    if vid:
+        vf_set = set(_dda.video_frame_map(ds, tid).get(vid, []))
     ldir = xlate_path(ds["label_dir"])
     out = {}
     for gi, rel in enumerate(_dda._frames(ds)):
+        if vf_set is not None and rel not in vf_set:
+            continue
         lp = os.path.join(ldir, *os.path.splitext(rel)[0].split("/")) + ".txt"
         cl = set()
         try:
