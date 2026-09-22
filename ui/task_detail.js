@@ -662,8 +662,9 @@ function kbd(e) {
   if (e.key === 'ArrowLeft') { navFrame(-1); return; }
   if (e.key === 'ArrowRight') { navFrame(1); return; }
   // Ctrl+C 复制 / Ctrl+V 粘贴标注框
-  if (e.ctrlKey && k === 'c') { copyBoxes(); e.preventDefault(); return; }
-  if (e.ctrlKey && k === 'v') { pasteBoxes(); e.preventDefault(); return; }
+  const ck = e.key.toLowerCase();
+  if (e.ctrlKey && ck === 'c') { copyBoxes(); e.preventDefault(); return; }
+  if (e.ctrlKey && ck === 'v') { pasteBoxes(); e.preventDefault(); return; }
   // Ctrl+S 保存
   if (e.ctrlKey && e.key.toLowerCase() === 's') { saveFrame(); e.preventDefault(); return; }
   // Ctrl+Z 撤销
