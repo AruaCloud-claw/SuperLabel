@@ -5,3 +5,4 @@ ultralytics
 sam2
 # GPU 加速可选：torch torchvision（CUDA 版）
 # pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
+Pillow>=10.0
