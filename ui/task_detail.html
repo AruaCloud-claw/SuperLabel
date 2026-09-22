@@ -90,6 +90,7 @@
      </label>
      <button class="delsel" id="delselimgs" onclick="askDeleteSelFrames()" disabled>删除所选</button>
      <button class="tbtn" onclick="locateUnreviewed()" title="定位到列表中第一个未复核（非绿色）的帧">定位</button>
+     <button class="tbtn" onclick="openClsFilter(this)" title="按标签类别筛选图像列表">筛选</button>
      <span id="selcount" style="font-size:11px;color:#888"></span>
     </div>
     <div id="vlist" style="flex:1;min-height:0">加载中…</div>
@@ -211,6 +212,10 @@
  </div>
 </div>
 
+
+<!-- 标签筛选悬浮窗 -->
+<div id="clsfpop" style="display:none;position:fixed;z-index:130;background:#252526;
+ border:1px solid #444;border-radius:6px;padding:8px;min-width:200px;box-shadow:0 4px 16px #000a"></div>
 
 <!-- 删除帧确认弹窗 -->
 <div id="delmodal" style="display:none;position:fixed;inset:0;background:#000a;z-index:130;
