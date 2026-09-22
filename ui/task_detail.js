@@ -588,6 +588,27 @@ function pushHist() {   // 纯快照：只记撤销历史，不标脏（避免�
 }
 function markChanged() { changed = true; scheduleAutoSave(); }
 function delSel() { if (sel >= 0) { pushHist(); dboxes.splice(sel, 1); sel = -1; markChanged(); drawBig(); } }
+/* 复制/粘贴标注框（归一化坐标，可跨帧/跨视频使用） */
+let clipBoxes = [];
+function copyBoxes() {
+  if (sel >= 0 && dboxes[sel]) {
+    clipBoxes = [dboxes[sel].slice()];   // 仅选中的那个框（矩形/多边形原样）
+    toast(`已复制 1 个标注框`, 'info');
+  } else if (dboxes.length) {
+    clipBoxes = dboxes.map(b => b.slice());   // 未选中：复制本帧全部
+    toast(`已复制本帧全部 ${clipBoxes.length} 个标注框`, 'info');
+  } else {
+    toast('当前帧没有可复制的标注', 'err');
+  }
+}
+function pasteBoxes() {
+  if (!clipBoxes.length) { toast('剪贴板为空，请先复制', 'err'); return; }
+  pushHist();
+  for (const b of clipBoxes) dboxes.push(b.slice());
+  sel = dboxes.length - 1;
+  markChanged(); drawBig();   // markChanged 会防抖自动保存；粘贴后可手动 Ctrl+S 立即确认
+  toast(`已粘贴 ${clipBoxes.length} 个标注框，记得保存`, 'ok');
+}
 function undo() { if (hist.length) { dboxes = JSON.parse(hist.pop()); sel = -1; drawBig(); } }
 async function saveFrame(silent) {
   if (!curDs || window._curFrame == null) return false;
@@ -640,6 +661,9 @@ function kbd(e) {
   }
   if (e.key === 'ArrowLeft') { navFrame(-1); return; }
   if (e.key === 'ArrowRight') { navFrame(1); return; }
+  // Ctrl+C 复制 / Ctrl+V 粘贴标注框
+  if (e.ctrlKey && k === 'c') { copyBoxes(); e.preventDefault(); return; }
+  if (e.ctrlKey && k === 'v') { pasteBoxes(); e.preventDefault(); return; }
   // Ctrl+S 保存
   if (e.ctrlKey && e.key.toLowerCase() === 's') { saveFrame(); e.preventDefault(); return; }
   // Ctrl+Z 撤销
