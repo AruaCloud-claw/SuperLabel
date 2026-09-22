@@ -1400,18 +1400,42 @@ function toServerPath(p) {
     return '/mnt/hgfs/VMShare/' + p.slice('D:\\VMShare\\'.length).replace(/\\/g, '/');
   return p;
 }
-/* ===== 导出（打包 zip 浏览器下载） ===== */
+/* ===== 导出（打包 zip 浏览器下载，带进度条 + 停止按钮） ===== */
+let exportAbort = null;
 async function doExport() {
   const format = $('exfmt').value;
-  $('exmsg2').textContent = '打包中…（帧多时请稍候）';
+  exportAbort = new AbortController();
+  const bar = (pct, txt) => {   // pct=null 时显示不定长动画
+    $('exmsg2').innerHTML = `
+     <div style="display:flex;align-items:center;gap:8px">
+      <div style="flex:1;height:10px;background:#333;border-radius:5px;overflow:hidden">
+       <div style="height:100%;width:${pct == null ? '30%' : pct + '%'};background:#0e639c;
+        border-radius:5px;transition:width .2s;${pct == null ? 'animation:fsind 1.2s linear infinite' : ''}"></div>
+      </div><span style="font-size:12px;color:#bbb;white-space:nowrap">${txt}</span>
+      <button style="flex:none;padding:1px 8px;font-size:12px;background:#5a5a5a;color:#fff;
+       border:none;border-radius:3px;cursor:pointer" onclick="exportStop()">停止</button></div>`;
+  };
   try {
-    const r = await api(`/api/anno_tasks/${tid}/export_zip?format=${format}`);
+    bar(null, '服务器打包中…');
+    const r = await api(`/api/anno_tasks/${tid}/export_zip?format=${format}`,
+      { signal: exportAbort.signal });
     if (!r.ok) {
       const res = await r.json().catch(() => ({}));
       $('exmsg2').textContent = res.err || '导出失败';
       return;
     }
-    const blob = await r.blob();
+    const total = +r.headers.get('Content-Length') || 0;
+    const reader = r.body.getReader();
+    const chunks = []; let got = 0;
+    const fmt = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.round(n / 1024) + ' KB';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value); got += value.length;
+      bar(total ? Math.round(got / total * 100) : null,
+          `下载中 ${fmt(got)}${total ? ' / ' + fmt(total) : ''}`);
+    }
+    const blob = new Blob(chunks);
     const cd = r.headers.get('Content-Disposition') || '';
     const m = cd.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
     let name = m ? decodeURIComponent(m[1]) : `task${tid}_yolo.zip`;
@@ -1420,10 +1444,17 @@ async function doExport() {
     a.download = name;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 30000);
-    $('exmsg2').textContent = `✓ 已打包下载 ${name}`;
+    $('exmsg2').textContent = `✓ 已打包下载 ${name}（${fmt(blob.size)}）`;
   } catch (err) {
-    $('exmsg2').textContent = '导出失败：' + (err.message || err);
+    if (err && err.name === 'AbortError') $('exmsg2').textContent = '已停止导出';
+    else $('exmsg2').textContent = '导出失败：' + (err && err.message || err);
+  } finally {
+    exportAbort = null;
   }
+}
+function exportStop() {
+  if (exportAbort) exportAbort.abort();
+  $('exmsg2').textContent = '已停止导出';
 }
 
 /* ===== 发布数据集 ===== */
