@@ -5,13 +5,12 @@ let curVideo = null, curDs = null, datasets = [], frameList = [];
 let classes = [];                    // [{name,color}]
 let dboxes = [], sel = -1;           // 当前帧框 [x1,y1,x2,y2,cls]
 let hist = [], changed = false, drag = null, space = false;
-let spaceStash = null;               // 空格临时移动期间挂起的绘制状态
-let spaceHeld = false, ctrlHeld = false, ctrlCancelled = false;
-// 临时移动总开关：空格按住，或“单独”按住 Ctrl（组合键不触发）
-function updateTempMove() {
-  const want = spaceHeld || (ctrlHeld && !ctrlCancelled);
-  if (want === space) return;
-  space = want;
+let spaceStash = null;               // 临时移动期间挂起的绘制状态
+let spaceDown = false, ctrlDown = false, spaceCancelled = false, ctrlCancelled = false;
+// 临时移动：空格或 Ctrl “按一下松开”切换开/关；组合键期间不触发
+function tempEnter(on) {
+  if (space === on) return;
+  space = on;
   if (space) {
     cv.style.cursor = 'grab'; syncToolBtns();
     if (pending || polyPts.length) {
@@ -26,6 +25,7 @@ function updateTempMove() {
     }
   }
 }
+function tempToggle() { tempEnter(!space); }
 const cv = document.getElementById('bigcv'), ctx = cv.getContext('2d');
 
 function onPageReady() {
@@ -36,13 +36,20 @@ function onPageReady() {
   });
   window.addEventListener('keydown', kbd);
   window.addEventListener('keyup', e => {
-    if (e.code === 'Space') { spaceHeld = false; updateTempMove(); }
-    if (e.key === 'Control') { ctrlHeld = false; ctrlCancelled = false; updateTempMove(); }
+    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+    if (e.code === 'Space') {
+      if (spaceDown && !spaceCancelled) tempToggle();   // 按一下松开：切换
+      spaceDown = false; spaceCancelled = false;
+    }
+    if (e.key === 'Control') {
+      if (ctrlDown && !ctrlCancelled) tempToggle();
+      ctrlDown = false; ctrlCancelled = false;
+    }
   });
   window.addEventListener('resize', () => { if (cv.dataset.nw) drawBig(); });
-  // 窗口失焦：keyu 可能收不到，复位临时移动
+  // 窗口失焦：复位按键按下标记（切换状态保留）
   window.addEventListener('blur', () => {
-    spaceHeld = ctrlHeld = false; ctrlCancelled = false; updateTempMove();
+    spaceDown = ctrlDown = false; spaceCancelled = ctrlCancelled = false;
   });
   bindCanvas();
 }
@@ -95,6 +102,7 @@ async function fetchFrames() {
 function renderClsRows() {
   $('clsrows').innerHTML = classes.map((c, i) =>
     `<div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;flex-wrap:nowrap">
+     <span style="width:16px;flex:none;text-align:right;color:#888;font-size:12px">${i}</span>
      <input value="${c.name}" data-i="${i}" class="clsname" style="flex:1;min-width:0"
       placeholder="标签名（英文效果最佳）">
      <input type="color" value="${c.color}" data-i="${i}" class="clscolor"
@@ -612,17 +620,18 @@ async function saveFrame(silent) {
 }
 function kbd(e) {
   if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
-  // 空格按住：临时移动模式
+  // 空格：按一下松开 → 切换临时移动
   if (e.code === 'Space') {
-    if (!e.repeat) spaceHeld = true;
-    updateTempMove(); e.preventDefault(); return;
+    if (!e.repeat && !spaceDown) { spaceDown = true; spaceCancelled = false; }
+    e.preventDefault(); return;
   }
-  // 单独按住 Ctrl：同样临时移动；一旦组合其他键则本次取消
+  // Ctrl：同上；组合其他键则本次不切换
   if (e.key === 'Control') {
-    if (!e.repeat && !ctrlHeld) { ctrlHeld = true; ctrlCancelled = false; }
-    updateTempMove(); e.preventDefault(); return;
+    if (!e.repeat && !ctrlDown) { ctrlDown = true; ctrlCancelled = false; }
+    e.preventDefault(); return;
   }
-  if (ctrlHeld) { ctrlCancelled = true; updateTempMove(); }   // Ctrl+其他键：退出临时移动
+  if (ctrlDown) ctrlCancelled = true;   // Ctrl+其他键：本次不切换
+  if (spaceDown) spaceCancelled = true; // 空格与其他键同按：本次不切换
   // ESC：绘制中取消本次标注（起点/顶点），否则取消选中
   if (e.key === 'Escape') {
     if (pending || polyPts.length) { pending = null; polyPts = []; hoverPt = null; drawBig(); }
@@ -827,19 +836,45 @@ async function doPrelabel() {
   }, { passive: false });
 })();
 
-/* 新框标签选择悬浮框 */
+/* 新框标签选择悬浮框（顶部搜索框：输序号快速选中） */
 function showClsPop(x, y) {
   const pop = document.getElementById('clspop');
-  pop.innerHTML = classes.map((c, i) =>
-    `<div style="display:flex;align-items:center;gap:8px;padding:5px 10px;cursor:pointer;
+  pop.innerHTML = `
+   <input id="clssearch" placeholder="输入序号快速选择" autocomplete="off"
+    style="width:100%;box-sizing:border-box;margin-bottom:4px;padding:3px 6px;background:#1b1b1b;
+    border:1px solid #555;border-radius:4px;color:#eee;font-size:12px;outline:none"
+    oninput="clsSearch(this.value)"
+    onkeydown="clsSearchKey(event)">
+   <div id="clsrows2">` +
+   classes.map((c, i) =>
+    `<div class="clsrow" data-i="${i}" style="display:flex;align-items:center;gap:8px;padding:5px 10px;cursor:pointer;
       border-radius:4px" onmouseover="this.style.background='#333'"
       onmouseout="this.style.background='none'"
       onclick="pickCls(${i})">
-     <span style="width:12px;height:12px;border-radius:2px;background:${c.color};
-      display:inline-block"></span>${c.name}</div>`).join('');
+     <span style="width:16px;flex:none;text-align:right;color:#888;font-size:12px">${i}</span>
+     <span style="width:12px;height:12px;flex:none;border-radius:2px;background:${c.color};
+      display:inline-block"></span>${c.name}</div>`).join('') +
+   `</div>`;
   pop.style.display = 'block';
   pop.style.left = Math.min(x, innerWidth - 170) + 'px';
   pop.style.top = Math.min(y, innerHeight - 40 * Math.max(1, classes.length)) + 'px';
+  const s = document.getElementById('clssearch');
+  if (s) setTimeout(() => { s.focus(); }, 0);   // 打开即激活输入框（等 DOM 稳定后）
+}
+function clsSearchKey(e) {
+  if (e.key === 'Enter') {   // 输完序号按 Enter 确认
+    const v = e.target.value.trim(), n = Number(v);
+    if (v !== '' && Number.isInteger(n) && n >= 0 && n < classes.length) pickCls(n);
+    e.preventDefault(); return;
+  }
+  if (e.key === 'Escape') {
+    e.stopPropagation();
+    document.getElementById('clspop').style.display = 'none';
+  }
+}
+function clsSearch(v) {   // 序号前缀过滤
+  const rows = document.querySelectorAll('#clspop .clsrow');
+  rows.forEach(r => r.style.display = (v === '' || String(r.dataset.i).startsWith(v)) ? 'flex' : 'none');
 }
 function pickCls(i) {
   if (sel >= 0 && dboxes[sel] && dboxes[sel][4] !== i) {
