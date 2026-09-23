@@ -17,6 +17,7 @@
  <div id="content">
   <div style="display:flex;align-items:center;margin-bottom:12px;gap:10px">
    <h2 style="flex:1;margin:0">问题清单 <span id="tname" style="font-size:14px;color:#888"></span></h2>
+   <button onclick="location.href='/ui/crops.html?id='+tid+'&name='+encodeURIComponent(tname)">返回切片审查</button>
    <button class="warn" onclick="clearIssues()">清空清单</button>
   </div>
   <div class="msg" id="cmsg" style="margin-bottom:10px">
