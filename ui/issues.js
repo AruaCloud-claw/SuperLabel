@@ -4,7 +4,7 @@ const tname = new URLSearchParams(location.search).get('name') || '';
 let classes = [];          // [{name,color}]
 let page = 1, pages = 1, curCls = null;   // curCls=null=全部
 let pageItems = [];        // 当前页条目
-const selSet = new Set();  // "gi_bi" -> {gi,bi,cls,file,img}
+const selSet = new Map();  // "gi_bi" -> {gi,bi,cls,file,img}
 
 function onPageReady() {
   $('tname').textContent = tname ? `· ${tname}` : '';
