@@ -58,10 +58,12 @@ async function loadList() {
     const c = clsMeta(m.cls), key = m.gi + '_' + m.bi;
     return `<div class="cropcard ${selSet.has(key) ? 'sel' : ''}" data-key="${key}"
       data-gi="${m.gi}" data-bi="${m.bi}" data-cls="${m.cls}"
-      data-file="${encodeURIComponent(m.file)}" data-img="${encodeURIComponent(m.img)}">
-     <span class="ck">✔</span>
+      data-file="${encodeURIComponent(m.file)}" data-img="${encodeURIComponent(m.img)}"
+      onclick="cardClick(event,this)">
+     <span class="ck">☐</span>
      <img loading="lazy" src="/api/anno_tasks/${tid}/crops/img/${m.img}?token=${T}"
-      onclick="window.open(this.src)" alt="" title="按住 Ctrl/直接点卡片为选择；点图片看大图">
+      onclick="event.stopPropagation();window.open(this.src)" alt=""
+      title="点卡片选择；点图片看大图">
      <div class="info">
       <span class="tag" style="background:${c.color}">${c.name}</span><br>
       ${m.file}<br>
@@ -82,16 +84,24 @@ function gotoEdit(gi, bi) {
 /* ===== 选择体系 ===== */
 function keyOf(el) { return el.dataset.gi + '_' + el.dataset.bi; }
 
+function cardClick(e, card) {
+  if (e.target.closest('button')) return;   // 卡内按钮（去修正）不走选择
+  toggleSel(card);
+}
+
 function toggleSel(card) {
   const key = keyOf(card);
+  const ck = card.querySelector('.ck');
   if (selSet.has(key)) {
     selSet.delete(key);
     card.classList.remove('sel');
+    if (ck) ck.textContent = '☐';
   } else {
     selSet.set(key, { gi: +card.dataset.gi, bi: +card.dataset.bi,
       cls: +card.dataset.cls, file: decodeURIComponent(card.dataset.file),
       img: decodeURIComponent(card.dataset.img) });
     card.classList.add('sel');
+    if (ck) ck.textContent = '✔';
   }
   renderSelList();
 }
