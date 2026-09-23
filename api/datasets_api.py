@@ -28,7 +28,11 @@ def _frames(ds):
             if f.lower().endswith(".jpg"):
                 out.append(f if rel == "." else f"{rel.replace(os.sep, '/')}/{f}")
     def key(r):
-        d, fn = (r.split("/", 1) + [""])[:2] if "/" in r else ("", r)
+        # 目录部分取最后一个 '/' 之前（根目录文件为空），文件名永远取末段；
+        # 旧写法对根目录文件解析错位（文件名落入目录位、fn=""），
+        # 导致所有根级帧排序键相同 → 顺序跟随 os.walk 目录序（不稳定）
+        # → 多次扫描序不一致，同一 gi 指向不同文件（图/标错位）。
+        d, _, fn = r.rpartition("/")
         dn = int(d[1:]) if d.startswith("v") and d[1:].isdigit() else 0
         return (dn, fn)
     out.sort(key=key)
