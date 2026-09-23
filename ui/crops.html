@@ -17,11 +17,14 @@
  <div id="content">
   <div style="display:flex;align-items:center;margin-bottom:12px;gap:10px">
    <h2 style="flex:1;margin:0">切片审查 <span id="tname" style="font-size:14px;color:#888"></span></h2>
+   <input id="marginInput" type="number" min="0" max="1" step="0.05" value="0.15"
+    title="外扩比例：相对标注框宽高，0=完全贴框" style="width:64px;padding:2px 4px">
+   <span style="color:#888;font-size:12px">外扩</span>
    <button id="genbtn" onclick="startGen()">开始切片</button>
    <button onclick="location.href='/ui/issues.html?id='+tid+'&name='+encodeURIComponent(tname)">查看清单</button>
   </div>
   <div class="msg" id="cmsg" style="margin-bottom:10px">
-    点击「开始切片」按当前标注框裁剪生成切片（外扩 15% 边距），完成后按标签分类展示，用于审查框-图是否匹配。</div>
+    点击「开始切片」按当前标注框裁剪生成切片；右上角「外扩」可调边距比例（默认 15%，0=完全贴框），完成后按标签分类展示，用于审查框-图是否匹配。</div>
   <div id="genbar" class="bar" style="display:none;margin-bottom:10px;height:10px">
    <i id="genbarfill" style="width:0%"></i></div>
   <div id="tabs" style="margin-bottom:12px"></div>

@@ -33,7 +33,14 @@ def _manifest_path(tid):
 @bp.route("/api/anno_tasks/<int:tid>/crops/generate", methods=["POST"])
 @require("admin", "lead", "annotator")
 def api_crops_generate(tid):
-    """开始切片：后台线程批量裁剪，写入 data/crops/task<tid>/。"""
+    """开始切片：后台线程批量裁剪，写入 data/crops/task<tid>/。
+    body 可选 {margin: 外扩比例}（相对框宽高，0=完全贴框，默认 0.15）。"""
+    body = request.get_json(silent=True) or {}
+    try:
+        margin = float(body.get("margin", MARGIN))
+    except (TypeError, ValueError):
+        return jsonify({"err": "margin 无效"}), 400
+    margin = min(max(margin, 0.0), 1.0)   # 钳位 0~100%
     t = db.q1("SELECT * FROM anno_tasks WHERE id=?", (tid,))
     if not t:
         return jsonify({"err": "task not found"}), 404
@@ -85,7 +92,7 @@ def api_crops_generate(tid):
                     W, H = im.size
                     for bi, cls, cx, cy, w, h in boxes:
                         cx *= W; cy *= H; w *= W; h *= H
-                        mx, my = w * MARGIN, h * MARGIN
+                        mx, my = w * margin, h * margin
                         x0 = max(0, int(cx - w / 2 - mx))
                         y0 = max(0, int(cy - h / 2 - my))
                         x1 = min(W, int(cx + w / 2 + mx))
