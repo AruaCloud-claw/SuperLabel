@@ -50,8 +50,8 @@ def api_crops_generate(tid):
     frames = _dda._frames(ds)
     cdir = _crops_dir(tid)
     os.makedirs(cdir, exist_ok=True)
-    for f in os.listdir(cdir):        # 清掉上一次的切片
-        if f != "crops.json":
+    for f in os.listdir(cdir):        # 清掉上一次的切片（保留清单与问题清单）
+        if f not in ("crops.json", "issues.json"):
             try:
                 os.remove(os.path.join(cdir, f))
             except OSError:
@@ -107,6 +107,76 @@ def api_crops_generate(tid):
             j["running"] = False
     threading.Thread(target=work, daemon=True).start()
     return jsonify({"ok": True, "running": True, "done": 0, "total": len(frames)})
+
+
+def _issues_path(tid):
+    return os.path.join(_crops_dir(tid), "issues.json")
+
+
+def _load_issues(tid):
+    if not os.path.isfile(_issues_path(tid)):
+        return []
+    try:
+        with open(_issues_path(tid), encoding="utf-8") as fh:
+            return json.load(fh)
+    except Exception:
+        return []
+
+
+def _save_issues(tid, issues):
+    os.makedirs(_crops_dir(tid), exist_ok=True)
+    with open(_issues_path(tid), "w", encoding="utf-8") as fh:
+        json.dump(issues, fh, ensure_ascii=False)
+
+
+@bp.route("/api/anno_tasks/<int:tid>/crops/issues")
+@require()
+def api_issues_list(tid):
+    """问题清单：分页，cls 过滤，结构与切片列表一致。"""
+    issues = _load_issues(tid)
+    cls = request.args.get("cls", type=int)
+    if cls is not None:
+        issues = [m for m in issues if m.get("cls") == cls]
+    issues.sort(key=lambda m: (m.get("gi", 0), m.get("bi", 0)))
+    total = len(issues)
+    pages = max(1, math.ceil(total / PER_PAGE))
+    page = min(max(1, request.args.get("page", 1, type=int)), pages)
+    return jsonify({"ok": True, "total": total, "pages": pages, "page": page,
+                    "items": issues[(page - 1) * PER_PAGE: page * PER_PAGE]})
+
+
+@bp.route("/api/anno_tasks/<int:tid>/crops/issues", methods=["POST"])
+@require("admin", "lead", "annotator")
+def api_issues_add(tid):
+    """加入问题清单：body {gi,bi,cls,file,img}；重复添加幂等。"""
+    b = request.get_json(force=True) or {}
+    for k in ("gi", "bi", "cls", "img"):
+        if k not in b:
+            return jsonify({"err": f"missing {k}"}), 400
+    issues = _load_issues(tid)
+    key = (b["gi"], b["bi"])
+    if any((m.get("gi"), m.get("bi")) == key for m in issues):
+        return jsonify({"ok": True, "dup": True})
+    issues.append({"gi": b["gi"], "bi": b["bi"], "cls": b.get("cls", 0),
+                   "file": b.get("file", ""), "img": b["img"]})
+    _save_issues(tid, issues)
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/anno_tasks/<int:tid>/crops/issues", methods=["DELETE"])
+@require("admin", "lead", "annotator")
+def api_issues_remove(tid):
+    """移出问题清单：body {gi,bi} 或 {clear:true}。"""
+    b = request.get_json(force=True) or {}
+    issues = _load_issues(tid)
+    if b.get("clear"):
+        _save_issues(tid, [])
+        return jsonify({"ok": True, "removed": len(issues)})
+    key = (b.get("gi"), b.get("bi"))
+    n = len(issues)
+    issues = [m for m in issues if (m.get("gi"), m.get("bi")) != key]
+    _save_issues(tid, issues)
+    return jsonify({"ok": True, "removed": n - len(issues)})
 
 
 @bp.route("/api/anno_tasks/<int:tid>/crops/status")

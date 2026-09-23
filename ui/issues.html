@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh"><head><meta charset="utf-8"><title>切片审查 - 标注平台</title>
+<html lang="zh"><head><meta charset="utf-8"><title>问题清单 - 标注平台</title>
 <link rel="stylesheet" href="/ui/style.css">
 <style>
  #cropgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
@@ -16,14 +16,11 @@
  <div id="nav"></div>
  <div id="content">
   <div style="display:flex;align-items:center;margin-bottom:12px;gap:10px">
-   <h2 style="flex:1;margin:0">切片审查 <span id="tname" style="font-size:14px;color:#888"></span></h2>
-   <button id="genbtn" onclick="startGen()">开始切片</button>
-   <button onclick="location.href='/ui/issues.html?id='+tid+'&name='+encodeURIComponent(tname)">查看清单</button>
+   <h2 style="flex:1;margin:0">问题清单 <span id="tname" style="font-size:14px;color:#888"></span></h2>
+   <button class="warn" onclick="clearIssues()">清空清单</button>
   </div>
   <div class="msg" id="cmsg" style="margin-bottom:10px">
-    点击「开始切片」按当前标注框裁剪生成切片（外扩 15% 边距），完成后按标签分类展示，用于审查框-图是否匹配。</div>
-  <div id="genbar" class="bar" style="display:none;margin-bottom:10px;height:10px">
-   <i id="genbarfill" style="width:0%"></i></div>
+    这里是你在切片审查页勾选「加入清单」的问题切片，用于集中修正；改完可在标注页保存后移出。</div>
   <div id="tabs" style="margin-bottom:12px"></div>
   <div id="cropgrid"></div>
   <div style="display:flex;gap:10px;align-items:center;justify-content:center;margin:16px 0">
@@ -34,6 +31,6 @@
  </div>
 </div>
 <script src="/ui/common.js"></script>
-<script src="/ui/crops.js"></script>
+<script src="/ui/issues.js"></script>
 <script>authGuard();</script>
 </body></html>

@@ -69,7 +69,7 @@ async function pollStatus() {
       clearInterval(polling); polling = null;
       showBar(null);
       $('genbtn').disabled = false; $('genbtn').textContent = '重新切片';
-      $('cmsg').textContent = '切片完成 ✓ 可按标签分类浏览；发现标注错误点「去修正」跳回标注页修改';
+      $('cmsg').textContent = '切片完成 ✓ 可按标签分类浏览；发现问题的框点「加入清单」收进问题清单页';
       curCls = null; page = 1;
       await loadClasses(); renderTabs(); loadList();
     }
@@ -124,13 +124,24 @@ async function loadList() {
       ${m.file}<br>
       <span style="color:#888">第 ${m.gi + 1} 帧 · 第 ${m.bi + 1} 框</span><br>
       <button style="margin-top:4px;width:100%;padding:3px"
-       onclick="gotoEdit(${m.gi},${m.bi})">去修正</button>
+       onclick="addIssue(${m.gi},${m.bi},${m.cls},'${encodeURIComponent(m.file)}','${encodeURIComponent(m.img)}',this)">加入清单</button>
      </div></div>`;
   }).join('') : '<div style="color:#666">无切片（该类别下没有标注框）</div>';
 }
 
-function gotoPage(p) { if (p >= 1 && p <= pages) { page = p; loadList(); } }
-
-function gotoEdit(gi, bi) {
-  location.href = `/ui/task_detail.html?id=${tid}&gi=${gi}&box=${bi}`;
+async function addIssue(gi, bi, cls, fileEnc, imgEnc, btn) {
+  try {
+    const r = await api(`/api/anno_tasks/${tid}/crops/issues`,
+      { method: 'POST', body: JSON.stringify({ gi, bi, cls,
+        file: decodeURIComponent(fileEnc), img: decodeURIComponent(imgEnc) }) });
+    const res = await r.json();
+    if (!res.ok) throw new Error(res.err || 'HTTP ' + r.status);
+    btn.textContent = res.dup ? '已在清单' : '已加入 ✓';
+    btn.disabled = true;
+    toast(res.dup ? '该框已在问题清单中' : '已加入问题清单', 'ok');
+  } catch (e) {
+    toast('加入清单失败: ' + (e && e.message ? e.message : e), 'err');
+  }
 }
+
+function gotoPage(p) { if (p >= 1 && p <= pages) { page = p; loadList(); } }
