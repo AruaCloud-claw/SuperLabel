@@ -36,7 +36,7 @@ async function startGen() {
   let r, res;
   try {
     const mi = parseFloat($('marginInput') ? $('marginInput').value : '');
-    const margin = isNaN(mi) ? 0.15 : Math.min(Math.max(mi, 0), 1);
+    const margin = isNaN(mi) ? 0 : Math.min(Math.max(mi, 0), 1);
     r = await api(`/api/anno_tasks/${tid}/crops/generate`,
       { method: 'POST', body: JSON.stringify({ margin }) });
     res = await r.json();

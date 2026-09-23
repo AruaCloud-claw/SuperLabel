@@ -13,7 +13,7 @@ from auth import require
 
 bp = Blueprint("crops", __name__)
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MARGIN = 0.15          # 裁剪外扩边距（相对框宽高）
+MARGIN = 0             # 裁剪外扩边距（相对框宽高），页面可传 margin 覆盖
 PER_PAGE = 200
 _jobs = {}             # tid -> {running, done, total}
 
@@ -34,7 +34,7 @@ def _manifest_path(tid):
 @require("admin", "lead", "annotator")
 def api_crops_generate(tid):
     """开始切片：后台线程批量裁剪，写入 data/crops/task<tid>/。
-    body 可选 {margin: 外扩比例}（相对框宽高，0=完全贴框，默认 0.15）。"""
+    body 可选 {margin: 外扩比例}（相对框宽高，0=完全贴框，默认 0）。"""
     body = request.get_json(silent=True) or {}
     try:
         margin = float(body.get("margin", MARGIN))
