@@ -186,6 +186,157 @@ def api_issues_remove(tid):
     return jsonify({"ok": True, "removed": n - len(issues)})
 
 
+# ---------- 问题清单批量操作（作用于标注框本体） ----------
+
+def _load_manifest(tid):
+    if not os.path.isfile(_manifest_path(tid)):
+        return []
+    try:
+        with open(_manifest_path(tid), encoding="utf-8") as fh:
+            return json.load(fh)
+    except Exception:
+        return []
+
+
+def _rewrite_label_boxes(label_path, fn):
+    """读 YOLO txt，对有效框行逐行应用 fn(bi, parts)，返回是否有改动。
+    bi 为有效框行序号（与切片生成时的框序号一致）。"""
+    try:
+        with open(label_path, encoding="utf-8") as fh:
+            lines = fh.read().splitlines()
+    except OSError:
+        return False
+    out, changed, bi = [], False, 0
+    for line in lines:
+        p = line.split()
+        if len(p) >= 5:
+            new = fn(bi, p)
+            if new is None:            # None = 删除该框
+                changed = True
+                bi += 1
+                continue
+            if new != p:
+                changed = True
+                out.append(" ".join(new))
+            else:
+                out.append(line)
+            bi += 1
+        else:
+            out.append(line)
+    if changed:
+        with open(label_path, "w", encoding="utf-8") as fh:
+            fh.write("\n".join(out) + ("\n" if out else ""))
+    return changed
+
+
+def _sync_manifest(tid, gi, bi, new_cls=None, remove=False):
+    """同步 crops.json（改类别/删条目+删图）与问题清单（删除时同步移出）。"""
+    man = _load_manifest(tid)
+    if remove:
+        for m in man:
+            if m["gi"] == gi and m["bi"] == bi:
+                try:
+                    os.remove(os.path.join(_crops_dir(tid), m["img"]))
+                except OSError:
+                    pass
+        man = [m for m in man if not (m["gi"] == gi and m["bi"] == bi)]
+        issues = [m for m in _load_issues(tid)
+                  if not (m.get("gi") == gi and m.get("bi") == bi)]
+        _save_issues(tid, issues)
+    elif new_cls is not None:
+        for m in man:
+            if m["gi"] == gi and m["bi"] == bi:
+                m["cls"] = new_cls
+    with open(_manifest_path(tid), "w", encoding="utf-8") as fh:
+        json.dump(man, fh, ensure_ascii=False)
+
+
+def _issues_apply(tid, body):
+    """批量操作公共体：校验 items，返回 (items, err)。"""
+    items = body.get("items") or []
+    if not isinstance(items, list) or not items:
+        return None, "items required"
+    clean = []
+    for it in items:
+        try:
+            clean.append((int(it["gi"]), int(it["bi"])))
+        except (KeyError, TypeError, ValueError):
+            return None, "bad item"
+    return clean, None
+
+
+@bp.route("/api/anno_tasks/<int:tid>/crops/issues/batch_classify", methods=["POST"])
+@require("admin", "lead", "annotator")
+def api_issues_batch_classify(tid):
+    """批量改类别：body {items:[{gi,bi}], cls}。把选中标注框的类别改为 cls。"""
+    body = request.get_json(force=True) or {}
+    items, err = _issues_apply(tid, body)
+    if err:
+        return jsonify({"err": err}), 400
+    try:
+        cls = int(body.get("cls"))
+    except (TypeError, ValueError):
+        return jsonify({"err": "cls invalid"}), 400
+    ds = _pool(tid)
+    if not ds:
+        return jsonify({"err": "任务池不存在"}), 404
+    import api.datasets_api as dda
+    fs = dda._frames(ds)          # 快照
+    ldir = xlate_path(ds["label_dir"])
+    done, miss = 0, 0
+    seen = set()
+    for gi, bi in items:
+        if (gi, bi) in seen or not (0 <= gi < len(fs)):
+            miss += 1; continue
+        seen.add((gi, bi))
+        rel = fs[gi]
+        lp = dda._label_path(ds, os.path.splitext(rel)[0] + ".txt")
+        def fn(b, p, cls=cls):
+            p[0] = str(cls)
+            return p
+        if _rewrite_label_boxes(lp, fn):
+            done += 1
+        else:
+            miss += 1
+        _sync_manifest(tid, gi, bi, new_cls=cls)
+        db.audit(request.user["id"], "issue_batch_classify",
+                 f"task{tid}/{fs[gi]}#{bi}→cls{cls}")
+    return jsonify({"ok": True, "done": done, "miss": miss})
+
+
+@bp.route("/api/anno_tasks/<int:tid>/crops/issues/batch_delete", methods=["POST"])
+@require("admin", "lead", "annotator")
+def api_issues_batch_delete(tid):
+    """批量删除标注框：body {items:[{gi,bi}]}。从 YOLO txt 删框，
+    同步删除对应切片图并从切片清单/问题清单移出。"""
+    body = request.get_json(force=True) or {}
+    items, err = _issues_apply(tid, body)
+    if err:
+        return jsonify({"err": err}), 400
+    ds = _pool(tid)
+    if not ds:
+        return jsonify({"err": "任务池不存在"}), 404
+    import api.datasets_api as dda
+    fs = dda._frames(ds)          # 快照
+    done, miss = 0, 0
+    seen = set()
+    for gi, bi in items:
+        if (gi, bi) in seen or not (0 <= gi < len(fs)):
+            miss += 1; continue
+        seen.add((gi, bi))
+        rel = fs[gi]
+        lp = dda._label_path(ds, os.path.splitext(rel)[0] + ".txt")
+        def fn(b, p):
+            return None           # None = 删除该行
+        if _rewrite_label_boxes(lp, fn):
+            done += 1
+        else:
+            miss += 1
+        _sync_manifest(tid, gi, bi, remove=True)
+        db.audit(request.user["id"], "issue_batch_delete", f"task{tid}/{fs[gi]}#{bi}")
+    return jsonify({"ok": True, "done": done, "miss": miss})
+
+
 @bp.route("/api/anno_tasks/<int:tid>/crops/status")
 @require()
 def api_crops_status(tid):

@@ -2,14 +2,34 @@
 <html lang="zh"><head><meta charset="utf-8"><title>问题清单 - 标注平台</title>
 <link rel="stylesheet" href="/ui/style.css">
 <style>
- #cropgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
- .cropcard{background:#252526;border:1px solid #3c3c3c;border-radius:6px;overflow:hidden}
- .cropcard img{width:100%;height:150px;object-fit:contain;background:#111;display:block;cursor:zoom-in}
- .cropcard .info{padding:6px 8px;font-size:12px;color:#bbb;line-height:1.5}
+ #main{display:flex;gap:14px;align-items:flex-start}
+ #left{flex:1;min-width:0}
+ #ops{width:270px;flex:none;position:sticky;top:12px;background:#252526;
+  border:1px solid #3c3c3c;border-radius:6px;padding:12px;font-size:13px}
+ #ops h3{margin:0 0 8px;font-size:14px}
+ #ops .row{margin:8px 0}
+ #ops select,#ops button{width:100%;padding:4px 6px;box-sizing:border-box}
+ #oplist{max-height:260px;overflow:auto;border:1px solid #3c3c3c;border-radius:4px;
+  background:#1e1e1e;margin-top:6px}
+ #oplist div{padding:3px 6px;border-bottom:1px solid #2a2a2a;cursor:pointer;
+  display:flex;justify-content:space-between;gap:6px;font-size:12px;color:#bbb}
+ #oplist div:hover{background:#094771}
+ #cropgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;
+  position:relative;user-select:none}
+ .cropcard{background:#252526;border:1px solid #3c3c3c;border-radius:6px;overflow:hidden;
+  position:relative;cursor:pointer}
+ .cropcard.sel{border-color:#4cc;outline:2px solid #4cc}
+ .cropcard img{width:100%;height:150px;object-fit:contain;background:#111;display:block;
+  cursor:zoom-in;pointer-events:none}
+ .cropcard .info{padding:6px 8px;font-size:12px;color:#bbb;line-height:1.5;pointer-events:none}
  .cropcard .tag{display:inline-block;padding:0 6px;border-radius:3px;color:#fff;font-size:11px}
+ .cropcard .ck{position:absolute;top:4px;right:6px;font-size:16px;color:#4cc;display:none}
+ .cropcard.sel .ck{display:block}
  .clstab{display:inline-block;padding:4px 12px;border-radius:4px;background:#333;color:#ccc;
   cursor:pointer;font-size:13px;border:none}
  .clstab.active{background:#094771;color:#fff}
+ #rubber{position:absolute;border:1px dashed #4cc;background:rgba(68,204,204,.12);
+  pointer-events:none;display:none;z-index:9}
 </style></head>
 <body>
 <div id="layout">
@@ -21,13 +41,34 @@
    <button class="warn" onclick="clearIssues()">清空清单</button>
   </div>
   <div class="msg" id="cmsg" style="margin-bottom:10px">
-    这里是你在切片审查页勾选「加入清单」的问题切片，用于集中修正；改完可在标注页保存后移出。</div>
-  <div id="tabs" style="margin-bottom:12px"></div>
-  <div id="cropgrid"></div>
-  <div style="display:flex;gap:10px;align-items:center;justify-content:center;margin:16px 0">
-   <button id="prev" onclick="gotoPage(page-1)">上一页</button>
-   <span id="pinfo" style="color:#888;font-size:13px"></span>
-   <button id="next" onclick="gotoPage(page+1)">下一页</button>
+    左侧卡片：点击单选/取消，按住鼠标拖矩形框选（框选为追加选择）。右侧操作区对选中项批量执行。</div>
+  <div id="main">
+   <div id="left">
+    <div id="tabs" style="margin-bottom:12px"></div>
+    <div id="cropgrid"><div id="rubber"></div></div>
+    <div style="display:flex;gap:10px;align-items:center;justify-content:center;margin:16px 0">
+     <button id="prev" onclick="gotoPage(page-1)">上一页</button>
+     <span id="pinfo" style="color:#888;font-size:13px"></span>
+     <button id="next" onclick="gotoPage(page+1)">下一页</button>
+    </div>
+   </div>
+   <div id="ops">
+    <h3>操作区</h3>
+    <div class="row" style="display:flex;gap:6px">
+     <button onclick="selectAllOnPage()">全选本页</button>
+     <button onclick="clearSel()">清空选择</button>
+    </div>
+    <div style="color:#888;margin:4px 0">已选 <b id="seln" style="color:#4cc">0</b> 项</div>
+    <div id="oplist"></div>
+    <div class="row" style="margin-top:12px;color:#9cf;font-weight:600">批量操作</div>
+    <div class="row">
+     <select id="clsPick"></select>
+    </div>
+    <div class="row"><button onclick="batchClassify()">改为该类别</button></div>
+    <div class="row"><button class="warn" onclick="batchDelete()">删除选中的标注框</button></div>
+    <div style="color:#888;font-size:12px;margin-top:6px">
+     改类别/删框直接写入帧标签文件并同步切片与清单，不可逆请谨慎。</div>
+   </div>
   </div>
  </div>
 </div>
