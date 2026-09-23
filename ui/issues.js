@@ -58,8 +58,7 @@ async function loadList() {
     const c = clsMeta(m.cls), key = m.gi + '_' + m.bi;
     return `<div class="cropcard ${selSet.has(key) ? 'sel' : ''}" data-key="${key}"
       data-gi="${m.gi}" data-bi="${m.bi}" data-cls="${m.cls}"
-      data-file="${encodeURIComponent(m.file)}" data-img="${encodeURIComponent(m.img)}"
-      onclick="cardClick(event,this)">
+      data-file="${encodeURIComponent(m.file)}" data-img="${encodeURIComponent(m.img)}">
      <span class="ck">☐</span>
      <img loading="lazy" src="/api/anno_tasks/${tid}/crops/img/${m.img}?token=${T}"
       onclick="event.stopPropagation();window.open(this.src)" alt=""
@@ -81,13 +80,8 @@ function gotoEdit(gi, bi) {
   location.href = `/ui/task_detail.html?id=${tid}&gi=${gi}&box=${bi}`;
 }
 
-/* ===== 选择体系 ===== */
+/* ===== 选择体系（事件委托：卡片点击切换选中） ===== */
 function keyOf(el) { return el.dataset.gi + '_' + el.dataset.bi; }
-
-function cardClick(e, card) {
-  if (e.target.closest('button')) return;   // 卡内按钮（去修正）不走选择
-  toggleSel(card);
-}
 
 function toggleSel(card) {
   const key = keyOf(card);
@@ -139,6 +133,14 @@ function removeSel(key) {
 function setupRubber() {
   const grid = document.getElementById('cropgrid');
   const rubber = document.getElementById('rubber');
+  /* 卡片点击选择：事件委托，避免内联 onclick 与缓存/重建时序问题 */
+  grid.addEventListener('click', e => {
+    const card = e.target.closest('.cropcard');
+    if (!card) return;
+    if (e.target.closest('button')) return;   // 卡内按钮（去修正）不切换选中
+    if (e.target.tagName === 'IMG') return;   // 点图片 = 看大图
+    toggleSel(card);
+  });
   let sx = 0, sy = 0, on = false;
   grid.addEventListener('mousedown', e => {
     if (e.button !== 0 || e.target.closest('.cropcard')) return;
