@@ -132,7 +132,7 @@ function removeSel(key) {
 /* 矩形框选：在网格空白处按下拖动画矩形，与卡片相交者追加选中 */
 function setupRubber() {
   const grid = document.getElementById('cropgrid');
-  const rubber = document.getElementById('rubber');
+  const getRubber = () => document.getElementById('rubber');   // loadList 会重建节点，每次现取
   /* 卡片点击选择：事件委托，避免内联 onclick 与缓存/重建时序问题 */
   grid.addEventListener('click', e => {
     const card = e.target.closest('.cropcard');
@@ -145,6 +145,7 @@ function setupRubber() {
   grid.addEventListener('mousedown', e => {
     if (e.button !== 0 || e.target.closest('.cropcard')) return;
     on = true;
+    const rubber = getRubber();
     const gr = grid.getBoundingClientRect();
     sx = e.clientX - gr.left + grid.scrollLeft;
     sy = e.clientY - gr.top + grid.scrollTop;
@@ -155,6 +156,7 @@ function setupRubber() {
   });
   window.addEventListener('mousemove', e => {
     if (!on) return;
+    const rubber = getRubber();
     const gr = grid.getBoundingClientRect();
     const x = e.clientX - gr.left + grid.scrollLeft;
     const y = e.clientY - gr.top + grid.scrollTop;
@@ -166,6 +168,7 @@ function setupRubber() {
   window.addEventListener('mouseup', e => {
     if (!on) return;
     on = false;
+    const rubber = getRubber();
     rubber.style.display = 'none';
     const w = parseFloat(rubber.style.width), h = parseFloat(rubber.style.height);
     if (w < 5 || h < 5) return;          // 视为误触
