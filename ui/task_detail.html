@@ -70,6 +70,8 @@
   <div style="display:flex;align-items:center;margin-bottom:14px">
    <button class="ghost" onclick="location.href='/ui/tasks.html'">← 返回任务广场</button>
    <h2 style="margin:0 0 0 14px" id="tTitle"></h2>
+   <button style="margin-left:10px;padding:2px 12px" title="进入切片审查页"
+    onclick="location.href='/ui/crops.html?id='+tid+'&name='+encodeURIComponent($('tTitle').textContent)">审查</button>
   </div>
   <div style="display:flex;gap:18px;align-items:stretch;flex:1;min-height:0">
    <!-- 左：任务视频竖列 -->
