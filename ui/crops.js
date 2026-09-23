@@ -24,24 +24,50 @@ function clsMeta(k) {
 }
 
 /* ===== 开始切片 + 进度轮询 ===== */
+function showBar(pct) {
+  $('genbar').style.display = pct == null ? 'none' : 'block';
+  if (pct != null) $('genbarfill').style.width = pct + '%';
+}
+
 async function startGen() {
   $('genbtn').disabled = true;
   $('cmsg').textContent = '切片任务已启动…';
-  const r = await api(`/api/anno_tasks/${tid}/crops/generate`, { method: 'POST' });
-  const res = await r.json();
-  if (!res.ok) { $('cmsg').textContent = res.err || '启动失败'; $('genbtn').disabled = false; return; }
+  showBar(0);
+  let r, res;
+  try {
+    r = await api(`/api/anno_tasks/${tid}/crops/generate`, { method: 'POST' });
+    res = await r.json();
+  } catch (e) {
+    $('cmsg').textContent = r && r.status === 404
+      ? '后端无切片接口（服务版本过旧，请重启 SuperLabel 服务）'
+      : '切片请求失败: ' + (e && e.message ? e.message : e);
+    $('genbtn').disabled = false; showBar(null); return;
+  }
+  if (!res.ok) { $('cmsg').textContent = res.err || '启动失败'; $('genbtn').disabled = false; showBar(null); return; }
   pollStatus();
 }
 
 async function pollStatus() {
   if (polling) clearInterval(polling);
   polling = setInterval(async () => {
-    const res = await (await api(`/api/anno_tasks/${tid}/crops/status`)).json();
+    let res;
+    try {
+      const r = await api(`/api/anno_tasks/${tid}/crops/status`);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      res = await r.json();
+    } catch (e) {
+      clearInterval(polling); polling = null;
+      $('cmsg').textContent = '进度查询失败: ' + (e && e.message ? e.message : e) + '（请刷新重试）';
+      $('genbtn').disabled = false; showBar(null);
+      return;
+    }
     if (res.running) {
       const pct = res.total ? Math.round(res.done / res.total * 100) : 0;
+      showBar(pct);
       $('cmsg').textContent = `切片中… ${res.done}/${res.total} 帧（${pct}%）`;
     } else if (res.ready) {
       clearInterval(polling); polling = null;
+      showBar(null);
       $('genbtn').disabled = false; $('genbtn').textContent = '重新切片';
       $('cmsg').textContent = '切片完成 ✓ 可按标签分类浏览；发现标注错误点「去修正」跳回标注页修改';
       curCls = null; page = 1;
@@ -50,9 +76,15 @@ async function pollStatus() {
   }, 1200);
 }
 
-async function checkExisting() {   // 已有切片则直接展示
+async function checkExisting() {   // 已有切片则直接展示；进行中则恢复进度条
   const res = await (await api(`/api/anno_tasks/${tid}/crops/status`)).json();
-  if (!res.running && res.ready) {
+  if (res.running) {
+    $('genbtn').disabled = true;
+    $('cmsg').textContent = '切片任务进行中…';
+    pollStatus();
+    return;
+  }
+  if (res.ready) {
     $('genbtn').textContent = '重新切片';
     $('cmsg').textContent = '已有切片结果，可直接浏览；点「重新切片」按最新标注重新生成';
     await loadClasses(); renderTabs(); loadList();

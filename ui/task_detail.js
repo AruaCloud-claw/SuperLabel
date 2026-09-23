@@ -1064,15 +1064,18 @@ async function doDeleteSelFrames() {
   delSelMode = false; $('delmodal').style.display = 'none';
   if (!curDs || !window._selFrames.size) return;
   const gis = [...window._selFrames];
-  let ok = 0;
-  for (const g of gis) {
-    const r = await api(`/api/ds/${curDs.id}/frame/${g}`, { method: 'DELETE' });
-    if (r.ok) ok++;
-  }
+  let res;
+  try {
+    const r = await api(`/api/ds/${curDs.id}/frames`,
+      { method: 'DELETE', body: JSON.stringify({ gis }) });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    res = await r.json();
+  } catch (e) { toast('批量删除请求失败: ' + (e && e.message ? e.message : e), 'err'); return; }
   window._selFrames.clear(); window._selAnchor = null;
   await reloadFrames();
-  toast(ok === gis.length ? `已删除 ${ok} 帧`
-    : `已删除 ${ok}/${gis.length} 帧，部分失败`, ok ? 'ok' : 'err');
+  const n = (res.failed || []).length;
+  toast(n ? `已删除 ${res.deleted}/${gis.length} 帧，${n} 个失败` : `已删除 ${res.deleted} 帧`,
+    n ? 'err' : 'ok');
 }
 async function doDeleteVideoFrames() {
   if (!delVideo) return;

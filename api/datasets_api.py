@@ -409,6 +409,44 @@ def api_del_frame(did, idx):
     return jsonify({"ok": True})
 
 
+@bp.route("/api/ds/<int:did>/frames", methods=["DELETE"])
+@require("admin", "lead", "annotator")
+def api_del_frames(did):
+    """批量删除帧：body {gis:[全局帧号]}。基于同一份帧列表快照逐帧删除，
+    避免 逐帧DELETE 时目录变化导致索引漂移（错删/漏删）。"""
+    body = request.get_json(silent=True) or {}
+    gis = body.get("gis")
+    if not isinstance(gis, list) or not gis:
+        return jsonify({"err": "gis required"}), 400
+    ds = _ds(did)
+    fs = _frames(ds)          # 快照：删除过程中不受目录变化影响
+    deleted, failed, seen = 0, [], set()
+    for idx in gis:
+        if not isinstance(idx, int) or not (0 <= idx < len(fs)) or idx in seen:
+            failed.append({"gi": idx, "err": "bad index"}); continue
+        seen.add(idx)
+        f = fs[idx]
+        fpath = _frame_path(ds, f)
+        try:
+            os.remove(fpath)
+            if os.path.exists(fpath):   # 双保险：确认真删掉了
+                raise OSError("文件仍存在")
+        except OSError as e:
+            failed.append({"gi": idx, "err": f"删除失败（{e}）"}); continue
+        lp = _label_path(ds, os.path.splitext(f)[0] + ".txt")
+        if os.path.exists(lp):
+            try:
+                os.remove(lp)
+            except OSError:
+                pass
+        db.ex("DELETE FROM reviewed_frames WHERE dataset_id=? AND frame_file=?", (did, f))
+        db.ex("DELETE FROM video_frames WHERE frame_file=?", (f,))
+        db.ex("DELETE FROM edit_locks WHERE dataset_id=? AND frame_file=?", (did, f))
+        db.audit(request.user["id"], "delete_frame", f"{ds['name']}/{f}")
+        deleted += 1
+    return jsonify({"ok": True, "deleted": deleted, "failed": failed})
+
+
 @bp.route("/api/ds/<int:did>/review/<int:idx>", methods=["POST"])
 @require("admin", "lead", "annotator")
 def api_review_frame(did, idx):
